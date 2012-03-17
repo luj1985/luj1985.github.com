@@ -143,8 +143,8 @@ wget http://mirrors.sohu.com/gentoo/snapshots/portage-latest.tar.bz2
 tar xjpf stage3-amd64-20120216.tar.bz2
 tar xjf portage-latest.tar.bz2 -C /mnt/gentoo/usr
 
-mount -o rbind /proc /mnt/gentoo/proc
-mount -o bind /dev /mnt/gentoo/dev
+mount -o bind /proc /mnt/gentoo/proc
+mount -o rbind /dev /mnt/gentoo/dev
 mount -o bind /sys /mnt/gentoo/sys
 ```
 

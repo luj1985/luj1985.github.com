@@ -189,6 +189,11 @@ emerge-webrsync
 ```
 From the manual page, ``emerge-webrsync`` will download the entire portage tree as a tarball, if it's the first time do the sync it will be much faster.
 
+##Install kernel source
+```
+emerge gentoo-sources
+```
+
 ## Select profile
 ```
 eselect profile list
@@ -263,11 +268,7 @@ echo config_eth0=\"dhcp\" >> /etc/conf.d/net
 [Here is a comprehensive document](http://www.linuxtopia.org/online_books/linux_kernel/kernel_configuration/index.html) 
 explain how to manually configure a kernel, especially the device driver which is the main part of Linux kernel.
 
-Install kernel source
-```
-emerge gentoo-sources
-```
-Because I must use initial RAM disk, so I use ``sys-kernel/genkernel`` to make it simpler.
+Because I must use initial RAM disk, use ``sys-kernel/genkernel`` to make it simpler.
 ```
 emerge genkernel
 genkernel --menuconfig --lvm --bootloader=grub all

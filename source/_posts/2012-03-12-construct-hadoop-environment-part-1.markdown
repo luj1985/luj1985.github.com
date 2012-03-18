@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Construct Hadoop environment <br />Part 1 Gentoo Linux"
+title: "Construct Hadoop environment<br />Part 1 Gentoo Linux"
 date: 2012-03-12 16:38
 comments: true
 categories: Linux

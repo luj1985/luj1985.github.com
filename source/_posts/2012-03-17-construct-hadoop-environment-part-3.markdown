@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Construct Hadoop environment <br />Part 3 KVM Guest"
+title: "Construct Hadoop environment<br />Part 3 KVM Guest"
 date: 2012-03-17 11:25
 comments: true
 categories: 

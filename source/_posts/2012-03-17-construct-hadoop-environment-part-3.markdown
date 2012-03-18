@@ -49,7 +49,7 @@ Assign a static IP address in my router.
 ```
 Because I want to use DNS to name all the machine.
 
-##Create kvm image
+##Create kvm image with QEMU tools
 Login as root and create a KVM image
 ```
 qemu-img create -f qcow2 -o preallocation=metadata hadoop.img 10G
@@ -63,6 +63,24 @@ vncviewer 192.168.2.101:0
 ```
 During Gentoo installation, it will compile a lot of packages. 
 So here I request a large mount of memory, after installation I will reduce its size.
+
+##Use libvirt tools to create KVM guest images
+libvirt is just a front-end of QEMU, but it provide many handy tools to manage the virtual machine.
+```
+echo "app-emulation/libvirt qemu virt-network
+emerge app-emulation libvirt
+/etc/init.d/libvirtd start
+rc-update add libvirtd default
+```
+
+Run command to connect libvirtd
+```
+virsh --connect qemu:///system
+```
+Or connect from a remote machine
+```
+virsh --connect ssh+qemu:///root@192.168.2.101/system
+```
 
 #Install Gentoo Linux (guest system)
 ##Create partition

@@ -244,7 +244,6 @@ echo config_eth0=\"dhcp\" >> /etc/conf.d/net
 grep -v rootfs /proc/mounts > /etc/mtab
 
 emerge dhcpcd nfs-utils gentoo-sources
-emerge grub-static
 
 rc-update add sshd default
 rc-update add rpcbind default
@@ -261,15 +260,22 @@ make install
 make modules_install
 ```
 
-edit /boot/grub/grub.conf
-```
-default 0
-timeout 1
+#Install Grub2
+Because Grub Legacy cannot recognize VirtIO disk, have to install Grub 2.
 
-title Gentoo Linux 3.2.1-r2
-root (hd0,0)
-kernel /boot/vmlinuz-3.2.1-gentoo-r2 root=/dev/sda3
+Currently Grub2 hasn't been mark stable in Gentoo
+
 ```
+echo "GRUB_PLATFORMS=qemu" >> /etc/make.conf
+emerge --autounmask-write =sys-boot/grub-1.99-r2
+env-update
+emerge unifont
+emerge -av =sys-boot/grub-1.99-r2
+grub2-mkconfig -o /boot/grub2/grub.cfg
+```
+Grub 2 required ``unifont`` package, should install it first
+
+TODO
 
 #Install JDK
 Hadoop require Java envrionment, so install jdk

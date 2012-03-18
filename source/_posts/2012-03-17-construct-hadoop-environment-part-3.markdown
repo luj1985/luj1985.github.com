@@ -61,47 +61,134 @@ The IP address of my KVM host machine is ``192.168.2.101``, I connect VNC using 
 ```
 vncviewer 192.168.2.101:0
 ```
-During Gentoo installation, it will compile a lot of packages. 
-So here I request a large mount of memory, after installation I will reduce its size.
+It's fine to use this method, but there are too many options to run a perfect vm, it's hard to 
+use command line to control
 
-##Use libvirt tools to create KVM guest images
+##Install libvirt on KVM host server
 libvirt is just a front-end of QEMU, but it provide many handy tools to manage the virtual machine.
 ```
-echo "app-emulation/libvirt qemu virt-network
+echo "app-emulation/libvirt qemu virt-network -lxc" >> /etc/portage/package.use
 emerge app-emulation libvirt
 /etc/init.d/libvirtd start
 rc-update add libvirtd default
 ```
 
-Run command to connect libvirtd
+###Install management tools on remote client
+* app-emulation/virt-manager
+
+There is a command line tools available to connect remote KVM host
 ```
-virsh --connect qemu:///system
+virsh -c qemu+ssh://root@192.168.2.101/system
 ```
-Or connect from a remote machine
+virt-manager must use the same manchanism to connect remote host. Because virt-manager use ssh to 
+connect the remote machine, it need to do authentication. But seems doesn't work well, so I copy 
+the ssh public key to the remote server, then it works
+
+###Domain XML
 ```
-virsh --connect ssh+qemu:///root@192.168.2.101/system
+<domain type='kvm' id='4'>
+  <name>hadoop-template</name>
+  <uuid>dbeb78bf-adab-1d79-4592-d1b26d77ccfe</uuid>
+  <memory>524288</memory>
+  <currentMemory>524288</currentMemory>
+  <vcpu>1</vcpu>
+  <os>
+    <type arch='x86_64' machine='pc-1.0'>hvm</type>
+    <boot dev='cdrom'/>
+    <boot dev='hd'/>
+    <bootmenu enable='yes'/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+    <pae/>
+  </features>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+  <devices>
+    <emulator>/usr/bin/qemu-kvm</emulator>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/hadoopimages/hadoop-template.img'/>
+      <target dev='vda' bus='virtio'/>
+      <alias name='virtio-disk0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+    </disk>
+    <disk type='file' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source file='/nfs/install-amd64-minimal-20120223.iso'/>
+      <target dev='hdc' bus='ide'/>
+      <readonly/>
+      <alias name='ide0-1-0'/>
+      <address type='drive' controller='0' bus='1' unit='0'/>
+    </disk>
+    <controller type='usb' index='0'>
+      <alias name='usb0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
+    </controller>
+    <controller type='ide' index='0'>
+      <alias name='ide0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
+    </controller>
+    <interface type='bridge'>
+      <mac address='00:00:00:00:00:01'/>
+      <source bridge='br0'/>
+      <target dev='vnet0'/>
+      <model type='virtio'/>
+      <alias name='net0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
+    </interface>
+    <serial type='pty'>
+      <source path='/dev/pts/0'/>
+      <target port='0'/>
+      <alias name='serial0'/>
+    </serial>
+    <console type='pty' tty='/dev/pts/0'>
+      <source path='/dev/pts/0'/>
+      <target type='serial' port='0'/>
+      <alias name='serial0'/>
+    </console>
+    <input type='mouse' bus='ps2'/>
+    <graphics type='vnc' port='5900' autoport='yes'/>
+    <video>
+      <model type='vga' vram='9216' heads='1'/>
+      <alias name='video0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
+    </video>
+    <memballoon model='virtio'>
+      <alias name='balloon0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
+    </memballoon>
+  </devices>
+  <seclabel type='none'/>
+</domain>
 ```
 
 #Install Gentoo Linux (guest system)
 ##Create partition
-fdisk /dev/sda
+Because I use ``VirtIO`` to create my virtual hard disk, the disk symbol has changed to /dev/vda
+
+fdisk /dev/vda
 ```
-Device    Boot      Start         End      Blocks   Id  System
-/dev/sda1   *        2048      104447       51200   83  Linux
-/dev/sda2          104448     1128447      512000   83  Linux
-/dev/sda3         1128448    20971519     9921536   83  Linux
+   Device Boot      Start         End      Blocks   Id  System
+/dev/vda1   *        2048       43007       20480   83  Linux
+/dev/vda2           43008      452607      204800   83  Linux
+/dev/vda3          452608    40959999    20253696   83  Linux
+
 ```
 ##Create and mount file system
 ```
-mkfs.ext4 /dev/sda3
-mount /dev/sda3 /mnt/gentoo
+mkfs.ext4 /dev/vda3
+mount /dev/vda3 /mnt/gentoo
 
-mkfs.ext4 dev/sda1
+mkfs.ext4 dev/vda1
 mkdir /mnt/gentoo/boot
-mount /dev/sda1 /mnt/gentoo
+mount /dev/vda1 /mnt/gentoo
 
-mkswap /dev/sda2
-swapon /dev/sda2
+mkswap /dev/vda2
+swapon /dev/vda2
 
 cd /mnt/gentoo
 tar xjpf stage3-amd64-20120301.tar.bz2
@@ -109,9 +196,8 @@ tar xjpf stage3-amd64-20120301.tar.bz2
 mkdir /mnt/gentoo/usr/portage
 mount -t nfs 192.168.2.101:/usr/portage /mnt/gentoo/usr/portage
 
-mount -o bind /proc /mnt/gentoo/proc
 mount -o rbind /dev /mnt/gentoo/dev
-mount -o sys /dev /mnt/gentoo/sys
+mount -o bind /proc /mnt/gentoo/proc
 ```
 
 ##System configuration
@@ -121,7 +207,7 @@ cp -L /etc/resolve.conf /mnt/gentoo/etc
 ```
 ##make.conf
 ```
-CFLAGS="-march=k8 -Os -pipe -fomit-frame-pointer"
+CFLAGS="-march=k8 -O2 -pipe -fomit-frame-pointer"
 CXXFLAGS="${CFLAGS}"
 CHOST="x86_64-pc-linux-gnu"
 
@@ -154,10 +240,10 @@ locale-gen
 cp /usr/share/zoneinfo/UTC /etc/localtime
 echo "Asia/Shanghai" > /etc/timezone
 
-echo config_etho=\"dhcp\" >> /etc/conf.d/net
+echo config_eth0=\"dhcp\" >> /etc/conf.d/net
+grep -v rootfs /proc/mounts > /etc/mtab
 
-emerge -av dhcpcd nfs-utils
-emerge gentoo-sources
+emerge dhcpcd nfs-utils gentoo-sources
 emerge grub-static
 
 rc-update add sshd default

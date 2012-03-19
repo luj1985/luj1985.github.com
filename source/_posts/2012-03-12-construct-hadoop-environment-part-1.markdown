@@ -265,8 +265,9 @@ echo config_eth0=\"dhcp\" >> /etc/conf.d/net
 ```
 
 ## Configurre Linux kernels
-[Here is a comprehensive document](http://www.linuxtopia.org/online_books/linux_kernel/kernel_configuration/index.html) 
-explain how to manually configure a kernel, especially the device driver which is the main part of Linux kernel.
+Run command ``lspci -k`` to view the driver currently used by LiveCD.
+
+And [here](http://www.linuxtopia.org/online_books/linux_kernel/kernel_configuration/index.html) is a comprehensive document explain how to manually configure a kernel, especially the device driver which is the main part of Linux kernel.
 
 Because I must use initial RAM disk, use ``sys-kernel/genkernel`` to make it simpler.
 ```

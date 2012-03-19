@@ -28,12 +28,33 @@ grep '(vmx|svm)' /proc/cpuinfo
 * vmx = virtual machine extensions (Intel) 
 My CPU is AMD based, the instruction set ``svm`` found
 
-##Kernel
-Kernel configuration
+##KVM host configuration
+###Kernel configuration
+[Here](http://www.linux-kvm.org/page/Tuning_Kernel#Kernel_for_host) is a official document about tuning the kernel of KVM host
 ```
-Processor type and features
-  [*] Enable KSM for page merging
+General setup
+  [*] Control Group support
 
+Processor type and features
+  [*] High Resolution Timer Support
+  [*] Allow for memory compaction
+  [*] Page migration
+  [*] Enable KSM for page merging
+  [*] transparent Hugepage Support
+
+Device Drivers
+  Character devices
+    [*] HPET - High Precision Event Timer
+
+[*] Virtualization
+  <M> Kernel-based Virtual Machine (KVM) support
+  < >   KVM for Intel processors support
+  <M>   KVM for AMD processors support
+  <M> Host kernel accelerator for virtio net
+```
+###Network support
+Enable following options to enable network bridge
+```
 [*] Networking support
   Networking options
     <M> 802.1d Ethernet Bridging
@@ -43,24 +64,22 @@ Device Drivers
 [*] Network device support
   [*] Network core driver support
     <M> Universal TUN/TAP device driver support
-
-[*] Virtualization
-  <M> Kernel-based Virtual Machine (KVM) support
-  < >   KVM for Intel processors support
-  <M>   KVM for AMD processors support
-  <M> Host kernel accelerator for virtio net
 ```
-/etc/conf.d/modules
+
+###/etc/conf.d/modules
+Load kernel module
 ```
 modules="kvm-amd bridge 8021q tun vhost-net"
 ```
-##Packages
+
+##User space packages
+emerge following user space tools
 ```
 app-emulation/qemu-kvm qemu-ifup
 net-misc/bridge-utils
 ```
 
-#Configuration
+#Network configuration
 Direct bridging (guests use an IP address on the same subnet as the host)
 {% blockquote KVM http://en.gentoo-wiki.com/wiki/KVM %}
 The most transparent option to allow your guests access to the internet is the "virtual hub". In this scheme, the bridge connects eth0 and your tuntap interfaces together, routing packets as if it were a real "old fashioned" hub (not a switch). The key to this approach is to make sure you have unique mac addresses on both the host's tuntap interface as well as the guest. 
@@ -68,7 +87,7 @@ The most transparent option to allow your guests access to the internet is the "
 
 Because I use QEMU Tap networking backend, it require to invoke QEMU as root (http://wiki.qemu.org/Documentation/Networking#Tap)
 
-##init.d
+##/etc/init.d
 ```
 ln -s /etc/init.d/net.lo /etc/init.d/net.br0
 rc-update add net.br0 default
@@ -86,6 +105,7 @@ depend_br0() {
     need net.eth0
 }
 ```
+
 ##Create script to manage network device
 I enabled ``qemu-ifup`` USE flag of app-emulation/qemu-kvm package. But the generated script were under ``/etc/qemu/`` which is not the default location qemu-kvm use. 
 

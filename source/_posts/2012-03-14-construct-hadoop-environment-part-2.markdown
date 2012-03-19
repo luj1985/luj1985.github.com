@@ -5,10 +5,20 @@ date: 2012-03-14 01:03
 comments: true
 categories: 
 ---
+KVM has two components
+
+* A device driver for managing the virtulization hardware; this driver exposes its capabilities via a character device ``/dev/kvm``
+* A user-space component for emulating PC hardware; this is a lightly modified ``QEMU`` process.
+
+The modified ``QEMU`` process ``mmap()`` the guest's physical memory and calls the kernel mode driver to execute in guest mode.
+
+The I/O model is directly derived from ``QEMU``'s, with support for copy-on-write disk images and other ``QEMU`` features.
+
 #Prerequisites
 I need remote connect to KVM guest, and all KVM guest should be able to communicate with each other, so I use bridge networking.
 
 KVM use a modified QEMU to emulate the system, I could follow the QEMU way to configure the network.
+
 ##Hardware 
 CPU has to support full virtualization. Intel CPUs need to have the vmx capability, AMD CPUs require svm: 
 ```

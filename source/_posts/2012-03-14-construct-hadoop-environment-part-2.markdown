@@ -14,11 +14,6 @@ The modified ``QEMU`` process ``mmap()`` the guest's physical memory and calls t
 
 The I/O model is directly derived from ``QEMU``'s, with support for copy-on-write disk images and other ``QEMU`` features.
 
-#Prerequisites
-I need remote connect to KVM guest, and all KVM guest should be able to communicate with each other, so I use bridge networking.
-
-KVM use a modified QEMU to emulate the system, I could follow the QEMU way to configure the network.
-
 ##Hardware 
 CPU must have virtualization instruction set support
 ```
@@ -55,7 +50,9 @@ Device Drivers
   <M> Host kernel accelerator for virtio net
 ```
 ###Network support
-Enable following options to enable network bridge
+I want to connect to KVM guest remotely, and all KVM guest should be able to communicate with each other, so I choose bridge networking.
+
+To enable network bridge need following kernel options.
 ```
 [*] Networking support
   Networking options
@@ -69,7 +66,7 @@ Device Drivers
 ```
 
 ###/etc/conf.d/modules
-Load kernel module
+Create config file to load kernel module
 ```
 modules="kvm-amd bridge 8021q tun vhost-net"
 ```
@@ -80,7 +77,6 @@ emerge following user space tools
 app-emulation/qemu-kvm qemu-ifup
 net-misc/bridge-utils
 ```
-
 #Network configuration
 Direct bridging (guests use an IP address on the same subnet as the host)
 {% blockquote KVM http://en.gentoo-wiki.com/wiki/KVM %}
@@ -90,12 +86,14 @@ The most transparent option to allow your guests access to the internet is the "
 Because I use QEMU Tap networking backend, it require to invoke QEMU as root (http://wiki.qemu.org/Documentation/Networking#Tap)
 
 ##/etc/init.d
+Create network device
 ```
 ln -s /etc/init.d/net.lo /etc/init.d/net.br0
 rc-update add net.br0 default
 ```
 
 ##/etc/conf.d/net
+Network startup options
 ```
 bridge_br0="eth0"
 config_eth0="null"
@@ -148,6 +146,9 @@ Or simply reboot the system.
 Login as root and run following command to create guest machine.
 ```
 qemu-img create -f qcow2 -o preallocation=metadata gentoo.img 10G
-qemu-kvm -hda gentoo.img -cdrom install-amd64-minimal-20120223.iso -net nic,mac=52.54:00:12:34:56,vlan=0 -net tap,vlan=0 -boot d -vnc :0
+qemu-kvm -hda gentoo.img -cdrom install-amd64-minimal-20120223.iso -net nic,mac=00:00:00:00:00:01,vlan=0 -net tap,vlan=0 -boot d -vnc :0
 ```
-Use option ``-vnc :0`` to open a VNC port, then I could use ``vncviewer`` to connect it remotely.
+Use option ``-vnc :0`` to open a VNC port, then I could use ``vncviewer`` to connect it remotely. IP address of my KVM host server is 192.168.2.101
+```
+vncviewer 192.168.2.101:0
+```

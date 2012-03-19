@@ -5,11 +5,9 @@ date: 2012-03-17 11:25
 comments: true
 categories: 
 ---
-Create a KVM guest as template, then clone this template to create new instance.
+Create a KVM guest as template, then clone this template to create new instance. I still use Gentoo Linux as guest system, and install with minimal components
 
-I still use Gentoo Linux as guest system, and install with minimal components
-
-In order to run Hadoop guest machine only require Java environment and sshd
+In order to run Hadoop guest machine only Java environment and sshd are required.
 
 #Configure NFS server on KVM host machine
 My host machine already has portage tree, I could export portage partition via NFS. Save bandwidth and disk space.
@@ -40,30 +38,6 @@ Reload NFS
 ```
 /etc/init.d/nfs reload
 ```
-
-#Create KVM guest image
-Assign a static IP address in my router.
-```
-       MAC                IP
-00-00-00-00-00-01   192.168.2.103
-```
-Because I want to use DNS to name all the machine.
-
-##Create kvm image with QEMU tools
-Login as root and create a KVM image
-```
-qemu-img create -f qcow2 -o preallocation=metadata hadoop.img 10G
-qemu-kvm -hda hadoop.img -smp 2 -m 1024 -cdrom install-amd64-minimal-20120223.iso \
-    -net nic,mac=00:00:00:00:00:01,vlan=0 -net tap,vlan=0 -boot d -vnc :0
-```
-
-The IP address of my KVM host machine is ``192.168.2.101``, I connect VNC using ``vncviewer``
-```
-vncviewer 192.168.2.101:0
-```
-It's fine to use this method, but there are too many options to run a perfect vm, it's hard to 
-use command line to control
-
 ##Install libvirt on KVM host server
 libvirt is just a front-end of QEMU, but it provide many handy tools to manage the virtual machine.
 ```
@@ -80,11 +54,10 @@ There is a command line tools available to connect remote KVM host
 ```
 virsh -c qemu+ssh://root@192.168.2.101/system
 ```
-virt-manager must use the same manchanism to connect remote host. Because virt-manager use ssh to 
-connect the remote machine, it need to do authentication. But seems doesn't work well, so I copy 
-the ssh public key to the remote server, then it works
+virt-manager use the same manchanism to connect remote host (via ssh). 
 
 ###Domain XML
+Create a vm as template, the domain xml is like:
 ```
 <domain type='kvm' id='4'>
   <name>hadoop-template</name>
@@ -241,7 +214,6 @@ cp /usr/share/zoneinfo/UTC /etc/localtime
 echo "Asia/Shanghai" > /etc/timezone
 
 echo config_eth0=\"dhcp\" >> /etc/conf.d/net
-grep -v rootfs /proc/mounts > /etc/mtab
 
 emerge dhcpcd nfs-utils gentoo-sources
 
@@ -252,31 +224,28 @@ rc-update add nfsmount default
 ln -s /etc/init.d/net.lo /etc/init.d/net.eth0
 rc-update add net.eth0 default
 
-grub-install --no-floppy /dev/sda
 
 cd /usr/src/linux
 make menuconfig
 make install
-make modules_install
+make modules\_install
 ```
 
-#Install Grub2
-Because Grub Legacy cannot recognize VirtIO disk, have to install Grub 2.
-
-Currently Grub2 hasn't been mark stable in Gentoo
-
+#Install Grub
 ```
-echo "GRUB_PLATFORMS=qemu" >> /etc/make.conf
-emerge --autounmask-write =sys-boot/grub-1.99-r2
-env-update
-emerge unifont
-emerge -av =sys-boot/grub-1.99-r2
-grub2-mkconfig -o /boot/grub2/grub.cfg
+grep -v rootfs /proc/mounts > /etc/mtab
+emerge -av grub-static
 ```
-Grub 2 required ``unifont`` package, should install it first
+Because Grub Legacy cannot recognize VirtIO disk automatically
 
-TODO
-
+Edit /boot/grub/device.map
+```
+(hd0)   /dev/vda
+```
+Then install Grub to MBR
+```
+grub-install --no-floppy /dev/vda
+```
 #Install JDK
 Hadoop require Java envrionment, so install jdk
 ```

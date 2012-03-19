@@ -20,10 +20,12 @@ I need remote connect to KVM guest, and all KVM guest should be able to communic
 KVM use a modified QEMU to emulate the system, I could follow the QEMU way to configure the network.
 
 ##Hardware 
-CPU has to support full virtualization. Intel CPUs need to have the vmx capability, AMD CPUs require svm: 
+CPU has to support full virtualization. Intel CPUs need to have the ``vmx`` capability, AMD CPUs require ``svm``: 
 ```
 grep '(vmx|svm)' /proc/cpuinfo
 ```
+* svm = secure virtual machine (AMD)
+* vmx = virtual machine extensions (Intel) 
 My CPU is AMD based, the instruction set ``svm`` found
 
 ##Kernel

@@ -20,15 +20,17 @@ I need remote connect to KVM guest, and all KVM guest should be able to communic
 KVM use a modified QEMU to emulate the system, I could follow the QEMU way to configure the network.
 
 ##Hardware 
-CPU has to support full virtualization. Intel CPUs need to have the ``vmx`` capability, AMD CPUs require ``svm``: 
+CPU must have virtualization instruction set support
 ```
 grep '(vmx|svm)' /proc/cpuinfo
 ```
 * svm = secure virtual machine (AMD)
 * vmx = virtual machine extensions (Intel) 
-My CPU is AMD based, the instruction set ``svm`` found
+
+My CPU is AMD based, the instruction set ``svm`` was found.
 
 ##KVM host configuration
+Tune kernel to support KVM, and enable network protocol to support bridge.
 ###Kernel configuration
 [Here](http://www.linux-kvm.org/page/Tuning_Kernel#Kernel_for_host) is a official document about tuning the kernel of KVM host
 ```

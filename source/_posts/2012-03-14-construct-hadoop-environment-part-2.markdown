@@ -13,7 +13,9 @@ KVM has two components
 The modified _QEMU_ process _mmap()_ the guest's physical memory and calls the kernel mode driver to execute in guest mode.
 
 The I/O model is directly derived from _QEMU_'s, with support for copy-on-write disk images and other _QEMU_ features.
-But use _QEMU_ to full virtualize will decreace the performance, so KVM introduce VirtIO to perform paravirtualization. 
+But use _QEMU_ to do full virtualization will reduce the performance, so KVM introduce VirtIO to perform paravirtualization, 
+notice guest machine that it was running in a virtual environment.
+
 [Here](http://www.ibm.com/developerworks/linux/library/l-virtio/) is a very good document described the virtio.
 
 ## Hardware 

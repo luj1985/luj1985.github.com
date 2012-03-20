@@ -18,6 +18,7 @@ notice guest machine that it was running in a virtual environment.
 
 [Here](http://www.ibm.com/developerworks/linux/library/l-virtio/) is a very good document described the virtio.
 
+# KVM based hypervisor configuration
 ## Hardware 
 CPU must have virtualization instruction set support
 ```
@@ -145,7 +146,7 @@ modprobe kvm-amd bridge 8021q tun vhost-net
 ```
 Or simply reboot the system.
 
-# Test KVM
+# Test KVM guest machine
 Login hypervisor as root and run following command to create guest machine.
 ```
 qemu-img create -f qcow2 -o preallocation=metadata gentoo.img 10G

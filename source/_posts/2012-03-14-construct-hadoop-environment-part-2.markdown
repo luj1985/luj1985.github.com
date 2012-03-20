@@ -89,7 +89,7 @@ Direct bridging (guests use an IP address on the same subnet as the host)
 The most transparent option to allow your guests access to the internet is the "virtual hub". In this scheme, the bridge connects eth0 and your tuntap interfaces together, routing packets as if it were a real "old fashioned" hub (not a switch). The key to this approach is to make sure you have unique mac addresses on both the host's tuntap interface as well as the guest. 
 {% endblockquote %}
 
-Because I use QEMU Tap networking backend, it require to invoke QEMU as root (http://wiki.qemu.org/Documentation/Networking#Tap)
+I use QEMU Tap networking backend, [it require to invoke QEMU as root](http://wiki.qemu.org/Documentation/Networking#Tap)
 
 ## /etc/init.d
 Create network device

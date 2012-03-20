@@ -146,13 +146,27 @@ modprobe kvm-amd bridge 8021q tun vhost-net
 Or simply reboot the system.
 
 # Test KVM
-## Create guest machine
-Login as root and run following command to create guest machine.
+Login hypervisor as root and run following command to create guest machine.
 ```
 qemu-img create -f qcow2 -o preallocation=metadata gentoo.img 10G
-qemu-kvm -hda gentoo.img -cdrom install-amd64-minimal-20120223.iso -net nic,mac=00:00:00:00:00:01,vlan=0 -net tap,vlan=0 -boot d -vnc :0
+qemu-kvm -hda gentoo.img -cdrom install-amd64-minimal-20120223.iso \
+         -net nic,mac=00:00:00:00:00:01,vlan=0 -net tap,vlan=0 -boot d -vnc :0
 ```
-Use option `-vnc :0` to open a VNC port, then I could use `vncviewer` to connect it remotely. IP address of my KVM host server is 192.168.2.101
+Use option `-vnc :0` to open a VNC port, then I could use `vncviewer` to connect it remotely. 
+IP address of my KVM host server is 192.168.2.101, then use following command to connect VNC
 ```
 vncviewer 192.168.2.101:0
+```
+
+After VNC connected, active network card in guest machine, start SSH server. 
+```
+ifconfig eth0 up
+dhcpcd eth0
+passwd
+/etc/init.d/sshd start
+```
+
+The guest machine gains IP address 192.168.2.103. Then it should be able to access from outside world.
+```
+ssh root@192.168.2.103
 ```

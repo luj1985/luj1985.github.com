@@ -31,7 +31,7 @@ virsh -c qemu+ssh://root@192.168.2.101/system
 ```
 virt-manager use the same manchanism to connect remote host (via SSH tunnel)
 
-# Domain XML
+## Domain XML
 Create a vm as template, the domain xml is like:
 ```
 <domain type='kvm' id='5'>
@@ -122,12 +122,12 @@ Create a vm as template, the domain xml is like:
 ```
 Here I request 1GB RAM during construct Gentoo system. The compilation will consume a lot of RAM, after system installation I could reduce the RAM amount.
 
-#Install Gentoo Linux (guest)
+## Install Gentoo Linux (guest)
 By default, Gentoo installation media kernel do not support `9p` which is the filesystem type VirtFS used. So here I use Ubuntu LiveCD instead.
 
 Run `sudo -i` to grab a root prompt.
 
-##Create partition
+### Create partition
 Because I choose `VirtIO` as my virtual hard disk driver, the disk label is /dev/vda.
 
 Run `fdisk /dev/vda` to create disk partition.
@@ -138,7 +138,7 @@ Run `fdisk /dev/vda` to create disk partition.
 /dev/vda3          432128    40959999    20206592   83  Linux
 
 ```
-##Create and mount file system
+### Create and mount file system
 ```
 mkfs.ext4 /dev/vda3
 mkdir /mnt/gentoo
@@ -162,12 +162,12 @@ mount -o bndd /sys  /mnt/gentoo/sys
 mount -o bind /dev  /mnt/gentoo/dev
 ```
 
-##System configuration
-##DNS resolve
+### System configuration
+#### DNS resolve
 ```
 cp -L /etc/resolve.conf /mnt/gentoo/etc
 ```
-##make.conf
+#### make.conf
 ```
 CFLAGS="-march=k8 -O2 -pipe -fomit-frame-pointer"
 CXXFLAGS="${CFLAGS}"
@@ -178,14 +178,14 @@ USE="mmx sse sse2 minimal -X -gnome -gtk -ipv6 -kde -qt"
 FEATURES="nodoc noinfo noman"
 ```
 
-##Chroot
+### Chroot
 ```
 chroot /mnt/gentoo /bin/bash
 env-update
 source /etc/profile
 ```
 
-##Configure the new system
+### Configure the new system
 Edit /etc/fstab
 ```
 UUID=b65f0153-1cbf-4b3c-83f0-967781e62cea /boot ext4 noatime 1 2
@@ -213,12 +213,9 @@ ln -s /etc/init.d/net.lo /etc/init.d/net.eth0
 rc-update add net.eth0 default
 
 
-cd /usr/src/linux
-make menuconfig
-make install
-make modules_install
 ```
-Kernel must contains _virtio_ drivers
+### Kernel configuration
+#### Kernel must contains _virtio_ drivers
 ```
 Processor type and features
   [*] Paravirtualized guest support
@@ -248,27 +245,24 @@ Device Drivers
     <*> Platform bus driver for memory mapped virtio devices
 ```
 
-Configure kernel for _virtfs_ support
+#### Configure kernel for _virtfs_ support
 ```
 [*] Networking support
   <M> Plan 9 Resource Sharing Support
-    <M> 9P Virtio Transport
+    <M> 9p Virtio Transport
 
 File systems
-  Network File Systems
+  [*] Network File Systems
     <M> Plan 9 Resource Sharing Support
       [*] 9P POSIX Access Control
-      [*] Enable 9P client caching support
 ```
 
-#Install Grub
+### Install Grub
 ```
 grep -v rootfs /proc/mounts > /etc/mtab
 emerge -av grub-static
 ```
-Because Grub Legacy cannot recognize VirtIO disk automatically
-
-Edit /boot/grub/device.map
+Because Grub Legacy cannot recognize VirtIO disk automatically, need to edit `/boot/grub/device.map` first
 ```
 (hd0)   /dev/vda
 ```
@@ -284,9 +278,9 @@ timeout 1
 title Gentoo Linux 3.2.1
 root (hd0,0)
 kernel /boot/vmlinuz-3.2.1-gentoo-r2 root=/dev/vda3
-
 ```
-#Install JDK
+
+### Install JDK
 Hadoop require Java envrionment, so install jdk
 ```
 emerge -av jdk
@@ -296,12 +290,7 @@ JAVA_HOME
 java-config --jdk-home
 ```
 
-#Free disk space
-Because this guest machine is used as a template, will create many instance. 
-
-Refer [this document](http://en.gentoo-wiki.com/wiki/Freeing_Up_Disk_Space) to see how to free disk space
-
-#Compact the KVM guest image
+## Compact the KVM guest image
 KVM guest disk format is ``qcow2``, after system installation the disk size has grew very big, but
 in fact most of them are empty (File created, then deleted)
 

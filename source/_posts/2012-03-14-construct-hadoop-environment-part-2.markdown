@@ -80,7 +80,7 @@ modules="kvm-amd bridge 8021q tun vhost-net"
 ## User space packages
 emerge following user space tools
 ```
-app-emulation/qemu-kvm qemu-ifup
+app-emulation/qemu-kvm qemu-ifup xattr
 net-misc/bridge-utils
 ```
 

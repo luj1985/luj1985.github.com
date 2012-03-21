@@ -5,40 +5,14 @@ date: 2012-03-17 11:25
 comments: true
 categories: 
 ---
-Create a KVM guest as template, then clone this template to create new instance. I still use Gentoo Linux as guest system, and install with minimal components
+Plan to construct a KVM guest as template, then clone this template to create new instance. 
 
-In order to run Hadoop guest machine only Java environment and sshd are required.
+I still use Gentoo Linux as guest system, and install with minimal components. 
+In order to run Hadoop, guest machine only need Java environment and SSH support.
 
-#Configure NFS server on KVM host machine
-My host machine already has portage tree, I could export portage partition via NFS. Save bandwidth and disk space.
+My host machine already has portage tree, I could passthrough entire portage partition via [VirtFS](http://www.linux-kvm.org/page/9p_virtio)
 
-[Virtfs](http://www.linuxplumbersconf.org/2010/ocw/proposals/603) can pass the file system to KVM guest machine directly. But I don't use it here.
-
-##Kernel configuration
-```
-File systems
-  [*] Network File Systems
-    <M> NFS server support
-    [*]   NFS server support for NFS version 3
-```
-
-##Install required packages
-```
-emerge -av net-fs/nfs-utils
-/etc/init.d/nfs start
-rc-update add nfs default
-```
-
-##Export NFS partition
-export file system (/etc/exports)
-```
-/usr/portage 192.168.2.0/255.255.255.0(async,rw,no_root_squash,no_subtree_check)
-```
-Reload NFS
-```
-/etc/init.d/nfs reload
-```
-##Install libvirt on KVM host server
+# Install libvirt on a hypervisor machine
 libvirt is just a front-end of QEMU, but it provide many handy tools to manage the virtual machine.
 ```
 echo "app-emulation/libvirt qemu virt-network -lxc" >> /etc/portage/package.use
@@ -47,16 +21,17 @@ emerge app-emulation libvirt
 rc-update add libvirtd default
 ```
 
-###Install management tools on remote client
-* app-emulation/virt-manager
+# Install management tools on remote client
+* app-emulation/virt-manager ~amd64
+Use latest one(0.9.1) to support VirtFS configuration options.
 
 There is a command line tools available to connect remote KVM host
 ```
 virsh -c qemu+ssh://root@192.168.2.101/system
 ```
-virt-manager use the same manchanism to connect remote host (via ssh). 
+virt-manager use the same manchanism to connect remote host (via SSH tunnel)
 
-###Domain XML
+# Domain XML
 Create a vm as template, the domain xml is like:
 ```
 <domain type='kvm' id='4'>
@@ -139,21 +114,26 @@ Create a vm as template, the domain xml is like:
 </domain>
 ```
 
-#Install Gentoo Linux (guest system)
-##Create partition
-Because I use ``VirtIO`` to create my virtual hard disk, the disk symbol has changed to /dev/vda
+#Install Gentoo Linux (guest)
+By default, Gentoo installation media kernel do not support `9p` which is the filesystem type VirtFS used. So here I use Ubuntu LiveCD instead.
 
-fdisk /dev/vda
+Run `sudo -i` to grab a root prompt.
+
+##Create partition
+Because I choose `VirtIO` as my virtual hard disk driver, the disk label is /dev/vda.
+
+Run `fdisk /dev/vda` to create disk partition.
 ```
    Device Boot      Start         End      Blocks   Id  System
-/dev/vda1   *        2048       43007       20480   83  Linux
-/dev/vda2           43008      452607      204800   83  Linux
-/dev/vda3          452608    40959999    20253696   83  Linux
+/dev/vda1   *        2048       22527       10240   83  Linux
+/dev/vda2           22528      432127      204800   83  Linux
+/dev/vda3          432128    40959999    20206592   83  Linux
 
 ```
 ##Create and mount file system
 ```
 mkfs.ext4 /dev/vda3
+mkdir /mnt/gentoo
 mount /dev/vda3 /mnt/gentoo
 
 mkfs.ext4 dev/vda1
@@ -167,10 +147,11 @@ cd /mnt/gentoo
 tar xjpf stage3-amd64-20120301.tar.bz2
 
 mkdir /mnt/gentoo/usr/portage
-mount -t nfs 192.168.2.101:/usr/portage /mnt/gentoo/usr/portage
+mount -t 9p -otrans=virtio,version=9p2000.L /hostportage /mnt/gentoo/usr/portage
 
-mount -o rbind /dev /mnt/gentoo/dev
 mount -o bind /proc /mnt/gentoo/proc
+mount -o bndd /sys  /mnt/gentoo/sys
+mount -o bind /dev  /mnt/gentoo/dev
 ```
 
 ##System configuration
@@ -184,7 +165,9 @@ CFLAGS="-march=k8 -O2 -pipe -fomit-frame-pointer"
 CXXFLAGS="${CFLAGS}"
 CHOST="x86_64-pc-linux-gnu"
 
-USE="mmx sse sse2 -X -gnome -gtk -ipv6 -kde -qt"
+USE="mmx sse sse2 minimal -X -gnome -gtk -ipv6 -kde -qt"
+
+FEATURES="nodoc noinfo noman"
 ```
 
 ##Chroot
@@ -197,10 +180,9 @@ source /etc/profile
 ##Configure the new system
 Edit /etc/fstab
 ```
-UUID=f06a74d7-e64e-4b61-b37d-23ed46843bc4 /boot ext4 noatime  1 2
-UUID=f2493fe6-ee09-4e91-8066-ebafc30436d4 none  swap sw       0 0 
-UUID=0acf7f67-b533-4950-8621-2474c6a4e4b9 /     ext4 noatime  0 1 
-192.168.2.101:/usr/portage    /usr/portage      nfs  defaults,noauto 0 0
+UUID=b65f0153-1cbf-4b3c-83f0-967781e62cea /boot ext4 noatime 1 2
+UUID=6a2fd05c-058f-4fee-a8b6-8cdef2d9c4ad none  swap sw      0 0
+UUID=b3a6d092-1ef2-4855-b296-af56ee653b54 /     ext4 noatime 0 1
 ```
 
 ```
@@ -210,16 +192,14 @@ eselect profile set 7
 echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 
-cp /usr/share/zoneinfo/UTC /etc/localtime
+cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 echo "Asia/Shanghai" > /etc/timezone
 
 echo config_eth0=\"dhcp\" >> /etc/conf.d/net
 
-emerge dhcpcd nfs-utils gentoo-sources
+emerge dhcpcd gentoo-sources
 
 rc-update add sshd default
-rc-update add rpcbind default
-rc-update add nfsmount default
 
 ln -s /etc/init.d/net.lo /etc/init.d/net.eth0
 rc-update add net.eth0 default
@@ -228,7 +208,49 @@ rc-update add net.eth0 default
 cd /usr/src/linux
 make menuconfig
 make install
-make modules\_install
+make modules_install
+```
+Kernel must contains _virtio_ drivers
+```
+Processor type and features
+  [*] Paravirtualized guest support
+    [*] KVM paravirtualized clock
+    [*] KVM Guest support
+    [*] Enable paravirtualization code
+  [*] Allow for memory hot-add
+  [*]   Allow for memory hot remove
+  [*] Page migration
+
+Bus options
+  [*] Message signaled Interrupts (MSI and MSI-X)
+  <M> Support for PCI Hotplug
+
+Device Drivers
+  [*] Block devices
+    <*> Virtio block driver
+  [*] Network device support
+    <*> Virtio network driver
+  Character devices
+    <*> Virtio console
+  <*> Hardware Random Number Generator Core support
+    <*> VirtIO Random number Generator support
+  Virtio drivers
+    <*> PCI driver for virtio devices
+    <*> Virtio balloon driver
+    <*> Platform bus driver for memory mapped virtio devices
+```
+
+Configure kernel for _virtfs_ support
+```
+[*] Networking support
+  <M> Plan 9 Resource Sharing Support
+    <M> 9P Virtio Transport
+
+File systems
+  Network File Systems
+    <M> Plan 9 Resource Sharing Support
+      [*] 9P POSIX Access Control
+      [*] Enable 9P client caching support
 ```
 
 #Install Grub
@@ -245,6 +267,16 @@ Edit /boot/grub/device.map
 Then install Grub to MBR
 ```
 grub-install --no-floppy /dev/vda
+```
+Edit /boot/grub/grub.conf
+```
+default 0
+timeout 1
+
+title Gentoo Linux 3.2.1
+root (hd0,0)
+kernel /boot/vmlinuz-3.2.1-gentoo-r2 root=/dev/vda3
+
 ```
 #Install JDK
 Hadoop require Java envrionment, so install jdk

@@ -34,11 +34,11 @@ virt-manager use the same manchanism to connect remote host (via SSH tunnel)
 # Domain XML
 Create a vm as template, the domain xml is like:
 ```
-<domain type='kvm' id='4'>
-  <name>hadoop-template</name>
-  <uuid>dbeb78bf-adab-1d79-4592-d1b26d77ccfe</uuid>
-  <memory>524288</memory>
-  <currentMemory>524288</currentMemory>
+<domain type='kvm' id='5'>
+  <name>gentoo</name>
+  <uuid>e7fdd218-e74d-f821-cc25-6424d4e69fc4</uuid>
+  <memory>1048576</memory>
+  <currentMemory>1048576</currentMemory>
   <vcpu>1</vcpu>
   <os>
     <type arch='x86_64' machine='pc-1.0'>hvm</type>
@@ -59,14 +59,14 @@ Create a vm as template, the domain xml is like:
     <emulator>/usr/bin/qemu-kvm</emulator>
     <disk type='file' device='disk'>
       <driver name='qemu' type='qcow2'/>
-      <source file='/hadoopimages/hadoop-template.img'/>
+      <source file='/hadoopimages/gentoo.img'/>
       <target dev='vda' bus='virtio'/>
       <alias name='virtio-disk0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
     </disk>
     <disk type='file' device='cdrom'>
       <driver name='qemu' type='raw'/>
-      <source file='/nfs/install-amd64-minimal-20120223.iso'/>
+      <source file='/nfs/ubuntu-11.10-desktop-amd64+mac.iso'/>
       <target dev='hdc' bus='ide'/>
       <readonly/>
       <alias name='ide0-1-0'/>
@@ -80,6 +80,13 @@ Create a vm as template, the domain xml is like:
       <alias name='ide0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
     </controller>
+    <filesystem type='mount' accessmode='passthrough'>
+      <driver type='path' wrpolicy='immediate'/>
+      <source dir='/usr/portage'/>
+      <target dir='/hostportage'/>
+      <alias name='fs0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
+    </filesystem>
     <interface type='bridge'>
       <mac address='00:00:00:00:00:01'/>
       <source bridge='br0'/>
@@ -101,7 +108,7 @@ Create a vm as template, the domain xml is like:
     <input type='mouse' bus='ps2'/>
     <graphics type='vnc' port='5900' autoport='yes'/>
     <video>
-      <model type='vga' vram='9216' heads='1'/>
+      <model type='cirrus' vram='9216' heads='1'/>
       <alias name='video0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
     </video>
@@ -113,6 +120,7 @@ Create a vm as template, the domain xml is like:
   <seclabel type='none'/>
 </domain>
 ```
+Here I request 1GB RAM during construct Gentoo system. The compilation will consume a lot of RAM, after system installation I could reduce the RAM amount.
 
 #Install Gentoo Linux (guest)
 By default, Gentoo installation media kernel do not support `9p` which is the filesystem type VirtFS used. So here I use Ubuntu LiveCD instead.

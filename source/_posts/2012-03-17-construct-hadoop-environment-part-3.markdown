@@ -22,17 +22,24 @@ rc-update add libvirtd default
 ```
 
 # Install management tools on remote client
-* app-emulation/virt-manager ~amd64
-Use latest one(0.9.1) to support VirtFS configuration options.
+Edit /etc/portage/package.keywords, add following line. Use latest one (0.9.1) to enable VirtFS configuration options.
+```
+app-emulation/virt-manager ~amd64
+```
 
-There is a command line tools available to connect remote KVM host
+There is also a command line tools available to manage virtual machines
 ```
 virsh -c qemu+ssh://root@192.168.2.101/system
 ```
 virt-manager use the same manchanism to connect remote host (via SSH tunnel)
 
 ## Domain XML
-Create a vm as template, the domain xml is like:
+Use virt-manager to create vm, the domain xml dumped from vm is like below
+
+* Use generic CPU, then this VM could port to other KVM based hypervisor
+* Share hypervisor file system, map `/usr/portage` to `/hostportage`
+* Enable virtio on Hard disk and Network card
+
 ```
 <domain type='kvm' id='5'>
   <name>gentoo</name>
@@ -120,10 +127,12 @@ Create a vm as template, the domain xml is like:
   <seclabel type='none'/>
 </domain>
 ```
-Here I request 1GB RAM during construct Gentoo system. The compilation will consume a lot of RAM, after system installation I could reduce the RAM amount.
+Here I request 1GB RAM during construct Gentoo system. 
+The compilation will consume a lot of RAM, after system installation I could reduce the RAM amount.
 
 ## Install Gentoo Linux (guest)
-By default, Gentoo installation media kernel do not support `9p` which is the filesystem type VirtFS used. So here I use Ubuntu LiveCD instead.
+By default, Gentoo installation media kernel do not support `9p` which is the filesystem VirtFS used. 
+So here I use Ubuntu LiveCD instead.
 
 Run `sudo -i` to grab a root prompt.
 
@@ -174,8 +183,6 @@ CXXFLAGS="${CFLAGS}"
 CHOST="x86_64-pc-linux-gnu"
 
 USE="mmx sse sse2 minimal -X -gnome -gtk -ipv6 -kde -qt"
-
-FEATURES="nodoc noinfo noman"
 ```
 
 ### Chroot
@@ -285,7 +292,7 @@ Hadoop require Java envrionment, so install jdk
 ```
 emerge -av jdk
 ```
-JAVA_HOME
+find _JAVA_HOME_ via command
 ```
 java-config --jdk-home
 ```

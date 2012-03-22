@@ -124,23 +124,16 @@ mkswap /dev/vg/swap
 
 mount /dev/vg/root /mnt/gentoo
 
-mkdir /mnt/gentoo/boot
+mkdir -p /mnt/gentoo/{boot,home,var,tmp,usr/portage}
 mount /dev/sda1 /mnt/gentoo/boot
 
-mkdir /mnt/gentoo/home
-mount /dev/vg/home /mnt/gentoo/home
-
-mkdir /mnt/gentoo/var
-mount /dev/vg/var /mnt/gentoo/var
+mount /dev/vg/home    /mnt/gentoo/home
+mount /dev/vg/var     /mnt/gentoo/var
+mount /dev/vg/tmp     /mnt/gentoo/tmp
+mount /dev/vg/portage /mnt/gentoo/usr/portage
 
 mkdir /mnt/gentoo/var/tmp
 mount /dev/vg/vartmp /mnt/gentoo/var/tmp
-
-mkdir /mnt/gentoo/tmp
-mount /dev/vg/tmp /mnt/gentoo/tmp
-
-mkdir -p /mnt/gentoo/usr/portage
-mount /dev/vg/portage /mnt/gentoo/usr/portage
 
 swapon /dev/vg/swap
 

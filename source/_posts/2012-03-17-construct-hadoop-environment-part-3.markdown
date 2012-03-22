@@ -12,17 +12,18 @@ In order to run Hadoop, guest machine only need Java environment and SSH support
 
 My host machine already has portage tree, I could passthrough entire portage partition via [VirtFS](http://www.linux-kvm.org/page/9p_virtio)
 
-# Install libvirt on a hypervisor machine
-libvirt is just a front-end of QEMU, but it provide many handy tools to manage the virtual machine.
+# Install libvirt on hypervisor machine
+_[libvirt](http://libvirt.org/)_ is just a front-end of KVM, but it provide many handy tools to manage the virtual machine.
 ```
 echo "app-emulation/libvirt qemu virt-network -lxc" >> /etc/portage/package.use
-emerge app-emulation libvirt
+emerge app-emulation/libvirt
 /etc/init.d/libvirtd start
 rc-update add libvirtd default
 ```
 
 # Install management tools on remote client
-Edit /etc/portage/package.keywords, add following line. Use latest one (0.9.1) to enable VirtFS configuration options.
+On a remote machine, here is my laptop. 
+Edit _/etc/portage/package.keywords_, add following line to use the latest one (0.9.1) which has enabled VirtFS configuration options.
 ```
 app-emulation/virt-manager ~amd64
 ```
@@ -34,12 +35,7 @@ virsh -c qemu+ssh://root@192.168.2.101/system
 virt-manager use the same manchanism to connect remote host (via SSH tunnel)
 
 ## Domain XML
-Use virt-manager to create vm, the domain xml dumped from vm is like below
-
-* Use generic CPU, then this VM could port to other KVM based hypervisor
-* Share hypervisor file system, map `/usr/portage` to `/hostportage`
-* Enable virtio on Hard disk and Network card
-
+Use virt-manager to create vm, the domain xml dumped from vm is like:
 ```
 <domain type='kvm' id='5'>
   <name>gentoo</name>
@@ -127,17 +123,20 @@ Use virt-manager to create vm, the domain xml dumped from vm is like below
   <seclabel type='none'/>
 </domain>
 ```
-Here I request 1GB RAM during construct Gentoo system. 
-The compilation will consume a lot of RAM, after system installation I could reduce the RAM amount.
+
+* Choose generic CPU, then this VM should be able to port to other KVM based hypervisor
+* Share hypervisor file system, map `/usr/portage` to `/hostportage`
+* Enable virtio on hard disk and network card
+
+Here I request 1GB RAM. The compilation will consume a lot of RAM, after system installation I could reduce the amount of RAM.
 
 ## Install Gentoo Linux (guest)
 By default, Gentoo installation media kernel do not support `9p` which is the filesystem VirtFS used. 
 So here I use Ubuntu LiveCD instead.
 
 Run `sudo -i` to grab a root prompt.
-
 ### Create partition
-Because I choose `VirtIO` as my virtual hard disk driver, the disk label is /dev/vda.
+I choose `VirtIO` as my virtual hard disk driver, the disk label is /dev/vda.
 
 Run `fdisk /dev/vda` to create disk partition.
 ```
@@ -147,6 +146,7 @@ Run `fdisk /dev/vda` to create disk partition.
 /dev/vda3          432128    40959999    20206592   83  Linux
 
 ```
+
 ### Create and mount file system
 ```
 mkfs.ext4 /dev/vda3

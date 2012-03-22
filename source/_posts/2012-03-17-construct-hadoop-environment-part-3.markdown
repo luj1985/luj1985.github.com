@@ -178,7 +178,7 @@ cp -L /etc/resolve.conf /mnt/gentoo/etc
 ```
 #### make.conf
 ```
-CFLAGS="-march=k8 -O2 -pipe -fomit-frame-pointer"
+CFLAGS="-O2 -pipe -fomit-frame-pointer"
 CXXFLAGS="${CFLAGS}"
 CHOST="x86_64-pc-linux-gnu"
 

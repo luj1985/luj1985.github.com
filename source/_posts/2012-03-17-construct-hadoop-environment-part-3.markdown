@@ -182,7 +182,7 @@ CFLAGS="-O2 -pipe -fomit-frame-pointer"
 CXXFLAGS="${CFLAGS}"
 CHOST="x86_64-pc-linux-gnu"
 
-USE="mmx sse sse2 minimal -X -gnome -gtk -ipv6 -kde -qt"
+USE="mmx sse sse2 -X -gnome -gtk -ipv6 -kde -qt -cups -alsa"
 ```
 
 ### Chroot
@@ -198,6 +198,7 @@ Edit /etc/fstab
 UUID=b65f0153-1cbf-4b3c-83f0-967781e62cea /boot ext4 noatime 1 2
 UUID=6a2fd05c-058f-4fee-a8b6-8cdef2d9c4ad none  swap sw      0 0
 UUID=b3a6d092-1ef2-4855-b296-af56ee653b54 /     ext4 noatime 0 1
+/hostportage /usr/portage  9p  trans=virtio,version=9p2000.L 0 0
 ```
 
 ```
@@ -214,13 +215,15 @@ echo config_eth0=\"dhcp\" >> /etc/conf.d/net
 
 emerge dhcpcd gentoo-sources
 
-rc-update add sshd default
-
 ln -s /etc/init.d/net.lo /etc/init.d/net.eth0
 rc-update add net.eth0 default
 
+rc-update add sshd default
 
+echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+locale-gen
 ```
+
 ### Kernel configuration
 #### Kernel must contains _virtio_ drivers
 ```
@@ -282,7 +285,7 @@ Edit /boot/grub/grub.conf
 default 0
 timeout 1
 
-title Gentoo Linux 3.2.1
+title Gentoo KVM guest 3.2.1-r2
 root (hd0,0)
 kernel /boot/vmlinuz-3.2.1-gentoo-r2 root=/dev/vda3
 ```

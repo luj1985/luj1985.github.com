@@ -37,12 +37,14 @@ virt-manager use the same manchanism to connect remote host (via SSH tunnel)
 ## Domain XML
 Use virt-manager to create vm, the domain xml dumped from vm is like:
 ```
-<domain type='kvm' id='5'>
+
+main type='kvm' id='7'>
   <name>gentoo</name>
   <uuid>e7fdd218-e74d-f821-cc25-6424d4e69fc4</uuid>
-  <memory>1048576</memory>
+  <description>Image for construct Apache Hadoop cluster</description>
+  <memory>2097152</memory>
   <currentMemory>1048576</currentMemory>
-  <vcpu>1</vcpu>
+  <vcpu current='1'>2</vcpu>
   <os>
     <type arch='x86_64' machine='pc-1.0'>hvm</type>
     <boot dev='cdrom'/>
@@ -54,6 +56,9 @@ Use virt-manager to create vm, the domain xml dumped from vm is like:
     <apic/>
     <pae/>
   </features>
+  <cpu mode='custom' match='exact'>
+    <model fallback='allow'>qemu64</model>
+  </cpu>
   <clock offset='utc'/>
   <on_poweroff>destroy</on_poweroff>
   <on_reboot>restart</on_reboot>
@@ -75,13 +80,28 @@ Use virt-manager to create vm, the domain xml dumped from vm is like:
       <alias name='ide0-1-0'/>
       <address type='drive' controller='0' bus='1' unit='0'/>
     </disk>
-    <controller type='usb' index='0'>
-      <alias name='usb0'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
-    </controller>
     <controller type='ide' index='0'>
       <alias name='ide0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
+    </controller>
+    <controller type='usb' index='0' model='ich9-ehci1'>
+      <alias name='usb0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x07' function='0x0'/>
+    </controller>
+    <controller type='usb' index='0' model='ich9-uhci1'>
+      <alias name='usb0'/>
+      <master startport='0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x08' function='0x0'/>
+    </controller>
+    <controller type='usb' index='0' model='ich9-uhci2'>
+      <alias name='usb0'/>
+      <master startport='2'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x09' function='0x0'/>
+    </controller>
+    <controller type='usb' index='0' model='ich9-uhci3'>
+      <alias name='usb0'/>
+      <master startport='4'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x0a' function='0x0'/>
     </controller>
     <filesystem type='mount' accessmode='passthrough'>
       <driver type='path' wrpolicy='immediate'/>

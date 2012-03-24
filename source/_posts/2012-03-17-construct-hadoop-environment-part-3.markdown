@@ -111,7 +111,7 @@ main type='kvm' id='7'>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
     </filesystem>
     <interface type='bridge'>
-      <mac address='00:00:00:00:00:01'/>
+      <mac address='00:00:00:00:00:03'/>
       <source bridge='br0'/>
       <target dev='vnet0'/>
       <model type='virtio'/>

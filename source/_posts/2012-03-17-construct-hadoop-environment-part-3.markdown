@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Construct Hadoop environment<br />Part 3 KVM Guest"
+title: "Construct Hadoop Environment<br />Part 3 KVM Guest"
 date: 2012-03-17 11:25
 comments: true
 categories: 
@@ -25,7 +25,7 @@ rc-update add libvirtd default
 On a remote machine, here is my laptop. 
 Edit _/etc/portage/package.keywords_, add following line to use the latest one (0.9.1) which has enabled VirtFS configuration options.
 ```
-app-emulation/virt-manager ~amd64
+app-emulation/virt-manager _~amd64_
 ```
 
 There is also a command line tools available to manage virtual machines
@@ -37,19 +37,17 @@ virt-manager use the same manchanism to connect remote host (via SSH tunnel)
 ## Domain XML
 Use virt-manager to create vm, the domain xml dumped from vm is like:
 ```
-
-main type='kvm' id='7'>
+<domain type='kvm' id='1'>
   <name>gentoo</name>
-  <uuid>e7fdd218-e74d-f821-cc25-6424d4e69fc4</uuid>
+  <uuid>3d0ba141-0f7d-7039-d595-c64abb9c1ba0</uuid>
   <description>Image for construct Apache Hadoop cluster</description>
-  <memory>2097152</memory>
-  <currentMemory>1048576</currentMemory>
-  <vcpu current='1'>2</vcpu>
+  <memory>204800</memory>
+  <currentMemory>204800</currentMemory>
+  <vcpu>1</vcpu>
   <os>
     <type arch='x86_64' machine='pc-1.0'>hvm</type>
-    <boot dev='cdrom'/>
     <boot dev='hd'/>
-    <bootmenu enable='yes'/>
+    <bootmenu enable='no'/>
   </os>
   <features>
     <acpi/>
@@ -74,37 +72,21 @@ main type='kvm' id='7'>
     </disk>
     <disk type='file' device='cdrom'>
       <driver name='qemu' type='raw'/>
-      <source file='/nfs/ubuntu-11.10-desktop-amd64+mac.iso'/>
       <target dev='hdc' bus='ide'/>
       <readonly/>
       <alias name='ide0-1-0'/>
       <address type='drive' controller='0' bus='1' unit='0'/>
     </disk>
+    <controller type='usb' index='0'>
+      <alias name='usb0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
+    </controller>
     <controller type='ide' index='0'>
       <alias name='ide0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
     </controller>
-    <controller type='usb' index='0' model='ich9-ehci1'>
-      <alias name='usb0'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x07' function='0x0'/>
-    </controller>
-    <controller type='usb' index='0' model='ich9-uhci1'>
-      <alias name='usb0'/>
-      <master startport='0'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x08' function='0x0'/>
-    </controller>
-    <controller type='usb' index='0' model='ich9-uhci2'>
-      <alias name='usb0'/>
-      <master startport='2'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x09' function='0x0'/>
-    </controller>
-    <controller type='usb' index='0' model='ich9-uhci3'>
-      <alias name='usb0'/>
-      <master startport='4'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x0a' function='0x0'/>
-    </controller>
     <filesystem type='mount' accessmode='passthrough'>
-      <driver type='path' wrpolicy='immediate'/>
+      <driver type='path'/>
       <source dir='/usr/portage'/>
       <target dir='/hostportage'/>
       <alias name='fs0'/>
@@ -129,7 +111,7 @@ main type='kvm' id='7'>
       <alias name='serial0'/>
     </console>
     <input type='mouse' bus='ps2'/>
-    <graphics type='vnc' port='5900' autoport='yes'/>
+    <graphics type='vnc' port='5900' autoport='yes' keymap='en-us'/>
     <video>
       <model type='cirrus' vram='9216' heads='1'/>
       <alias name='video0'/>
@@ -143,12 +125,11 @@ main type='kvm' id='7'>
   <seclabel type='none'/>
 </domain>
 ```
-
 * Choose generic CPU, then this VM should be able to port to other KVM based hypervisor
 * Share hypervisor file system, map `/usr/portage` to `/hostportage`
 * Enable virtio on hard disk and network card
 
-Here I request 1GB RAM. The compilation will consume a lot of RAM, after system installation I could reduce the amount of RAM.
+I request 2GB RAM during installation. The compilation will consume a lot of RAM, after system installation I reduce the amount of RAM and CPU count.
 
 ## Install Gentoo Linux (guest)
 By default, Gentoo installation media kernel do not support `9p` which is the filesystem VirtFS used. 
@@ -228,8 +209,8 @@ eselect profile set 7
 echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 
-cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-echo "Asia/Shanghai" > /etc/timezone
+cp /usr/share/zoneinfo/UTC /etc/localtime
+echo "UTC" > /etc/timezone
 
 echo config_eth0=\"dhcp\" >> /etc/conf.d/net
 

@@ -100,17 +100,17 @@ rc-update add net.br0 default
 ```
 
 ## Enable KSM
-KSM was not enabled by default. Enable KSM in local service
+KSM was not enabled by default. 
 
 Create file _/etc/local.d/ksm.start_
 ```
 echo 1 > /sys/kernel/mm/ksm/run
 ```
-Enable execute mode bit
+Grant executable permission
 ```
 chmod a+x /etc/local.d/ksm.start
 ```
-In Gentoo, all script in directory _/etc/local.d_ will be executed by _/etc/init.d/local_ when system start up
+In Gentoo, all script in directory _/etc/local.d_ will be executed by _/etc/init.d/local_ when system starting up
 
 
 ## /etc/conf.d/net

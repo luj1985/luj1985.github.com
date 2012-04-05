@@ -99,6 +99,31 @@ ln -s /etc/init.d/net.lo /etc/init.d/net.br0
 rc-update add net.br0 default
 ```
 
+Enable KSM
+
+Create script _/etc/init.d/ksm
+```
+#!/sbin/runscript
+# Copyright 1999-2012 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+# $Header: $
+
+start() {
+    echo 1 > /sys/kernel/mm/ksm/run
+    return 0
+}
+
+stop() {
+    echo 0 > /sys/kernel/mm/ksm/run
+    return 0
+}
+```
+Add script to default runlevel
+```
+chmod a+x /etc/init.d/ksm
+rc-update add ksm default
+```
+
 ## /etc/conf.d/net
 Network startup options
 ```

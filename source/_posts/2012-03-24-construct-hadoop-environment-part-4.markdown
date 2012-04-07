@@ -96,9 +96,14 @@ router      IN      A       192.168.2.1
 hypervisor  IN      A       192.168.2.101
 
 gentoo      IN      A       192.168.2.103
-namenode1   IN      A       192.168.2.104
-datanode1   IN      A       192.168.2.105
-datanode2   IN      A       192.168.2.106
+jobtracker  IN      A       192.168.2.104
+namenode1   IN      A       192.168.2.105
+namenode2   IN      A       192.168.2.106
+datanode1   IN      A       192.168.2.107
+datanode2   IN      A       192.168.2.108
+datanode3   IN      A       192.168.2.109
+datanode4   IN      A       192.168.2.110
+datanode5   IN      A       192.168.2.111
 ```
 
 ### Edit _/var/bind/pri/2.168.192.zone_
@@ -119,10 +124,14 @@ $TTL 1W
 1       IN PTR      router.hcluster.org.
 
 103     IN PTR      gentoo.hcluster.org.
-104     IN PTR      namenode1.hadoop.hcluster.org.
-105     IN PTR      datanode1.hadoop.hcluster.org.     
-106     IN PTR      datanode2.hadoop.hcluster.org.
-
+104     IN PTR      jobtracker.hadoop.hcluster.org.
+105     IN PTR      namenode1.hadoop.hcluster.org.     
+106     IN PTR      namenode2.hadoop.hcluster.org.
+107     IN PTR      datanode1.hadoop.hcluster.org.
+108     IN PTR      datanode2.hadoop.hcluster.org.
+109     IN PTR      datanode3.hadoop.hcluster.org.     
+110     IN PTR      datanode4.hadoop.hcluster.org.     
+111     IN PTR      datanode5.hadoop.hcluster.org.
 ```
 
 ### Permission
@@ -133,13 +142,13 @@ chgrp named /var/bind/pri/*
 Reload configuration file and do some test
 ```
 rndc reload
-host namenode.hcluster.org
+host jobtracker.hcluster.org
 host 192.168.2.104
 ```
 The test result should like
 ```
-namenode.hcluster.org has address 192.168.2.104
-104.2.168.192.in-addr.arpa domain name pointer namenode.hcluster.org.
+jobtracker.hcluster.org has address 192.168.2.104
+104.2.168.192.in-addr.arpa domain name pointer jobtracker.hcluster.org.
 ```
 
 # Change DHCP configuration on router

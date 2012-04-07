@@ -37,12 +37,12 @@ virt-manager use the same manchanism to connect remote host (via SSH tunnel)
 ## Domain XML
 Use virt-manager to create vm, the domain xml dumped from vm is like:
 ```
-<domain type='kvm' id='1'>
+<domain type='kvm'>
   <name>gentoo</name>
   <uuid>3d0ba141-0f7d-7039-d595-c64abb9c1ba0</uuid>
   <description>Image for construct Apache Hadoop cluster</description>
-  <memory>204800</memory>
-  <currentMemory>204800</currentMemory>
+  <memory>1048576</memory>
+  <currentMemory>1048576</currentMemory>
   <vcpu>1</vcpu>
   <os>
     <type arch='x86_64' machine='pc-1.0'>hvm</type>
@@ -67,69 +67,53 @@ Use virt-manager to create vm, the domain xml dumped from vm is like:
       <driver name='qemu' type='qcow2'/>
       <source file='/hadoopimages/gentoo.img'/>
       <target dev='vda' bus='virtio'/>
-      <alias name='virtio-disk0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
     </disk>
     <disk type='file' device='cdrom'>
       <driver name='qemu' type='raw'/>
       <target dev='hdc' bus='ide'/>
       <readonly/>
-      <alias name='ide0-1-0'/>
       <address type='drive' controller='0' bus='1' unit='0'/>
     </disk>
     <controller type='usb' index='0'>
-      <alias name='usb0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
     </controller>
     <controller type='ide' index='0'>
-      <alias name='ide0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
     </controller>
     <filesystem type='mount' accessmode='passthrough'>
       <driver type='path'/>
       <source dir='/usr/portage'/>
       <target dir='/hostportage'/>
-      <alias name='fs0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
     </filesystem>
     <interface type='bridge'>
       <mac address='00:00:00:00:00:03'/>
       <source bridge='br0'/>
-      <target dev='vnet0'/>
       <model type='virtio'/>
-      <alias name='net0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
     </interface>
     <serial type='pty'>
-      <source path='/dev/pts/0'/>
       <target port='0'/>
-      <alias name='serial0'/>
     </serial>
-    <console type='pty' tty='/dev/pts/0'>
-      <source path='/dev/pts/0'/>
+    <console type='pty'>
       <target type='serial' port='0'/>
-      <alias name='serial0'/>
     </console>
     <input type='mouse' bus='ps2'/>
-    <graphics type='vnc' port='5900' autoport='yes' keymap='en-us'/>
+    <graphics type='vnc' port='-1' autoport='yes' keymap='en-us'/>
     <video>
       <model type='cirrus' vram='9216' heads='1'/>
-      <alias name='video0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
     </video>
     <memballoon model='virtio'>
-      <alias name='balloon0'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
     </memballoon>
   </devices>
-  <seclabel type='none'/>
 </domain>
 ```
 * Choose generic CPU, then this VM should be able to port to other KVM based hypervisor
 * Share hypervisor file system, map `/usr/portage` to `/hostportage`
 * Enable virtio on hard disk and network card
-
-I request 2GB RAM during installation. The compilation will consume a lot of RAM, after system installation I reduce the amount of RAM and CPU count.
 
 ## Install Gentoo Linux (guest)
 By default, Gentoo installation media kernel do not support `9p` which is the filesystem VirtFS used. 

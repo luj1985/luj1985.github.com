@@ -7,68 +7,76 @@ categories: Linux
 ---
 I want to do some experiments on Hadoop, but currently I don't have enough machine to run Hadoop in full-distribute mode. 
 
-I have a PC in my hand, I'd like to configure this machine as hypervisor and run several guest machines on it. 
+Currently I have a PC in my hand, and I'd like to configure this machine as hypervisor and run several guest machines on it. 
 All guest machines should be able to communicate with each other, and should be able to access from a remote machine.
 
-I choose Gentoo as the operation system of hypervisor.
+Here I choose Gentoo as the operation system of hypervisor.
 
 # Preparation
-First download the minimal installation media from [Gentoo offical site](http://www.gentoo.org/main/en/where.xml), 
-use any Live CD is OK, the purpose of this media is used to boot system up.
+Firstly download the minimal installation media from [Gentoo offical site](http://www.gentoo.org/main/en/where.xml), 
+Use any Live CD is OK, the purpose of this media is to boot system up.
 
 And the CD-ROM of my machine does not function well, so I create a bootable Live USB drive 
 using [UNetbootin](http://unetbootin.sourceforge.net/), and then boot from USB drive
 
 # Gentoo Installation
+Below steps are refer [Gentoo Handbook](http://www.gentoo.org/doc/en/handbook/handbook-amd64.xml) and [Gentoo LVM Guide](http://www.gentoo.org/doc/en/lvm2.xml)
 ## Setup network
-To install Gentoo must setup network. 
+Gentoo installation process relies on network heavily.
 The installation media only contains some nesessary programs to bootstrap system. 
-Other source code packages are required to download from network during system installation.
+Other source code packages need download from remote site (Gentoo portage)
 
-Active network card, then use DHCP to obtain IP address and DNS information.
+Active network card, then use DHCP client to obtain IP address and DNS server information.
 ```
 ifconfig eth0 up
 dhcpcd eth0
 ```
 
 ## Manage hard disk
-There are three hard disks in my machine
+There are three hard disks installed in my machine
 ```
 /dev/sda 120G
 /dev/sdb 500G
 /dev/sdc 500G
 ```
-Though my _/dev/sda_ is a PATA device, but it still be recoginized as SATA. 
-Because kernel 2.6.19 has merged PATA drivers into SATA 
+Though my _/dev/sda_ is a **PATA** device, but it still be recoginized as **SATA**. 
+I did some search, and found that kernel 2.6.19 has merged PATA drivers into **SATA**, 
+this make the device file name starts with _sd_ 
 ([Libata PATA (Parallel ATA) merge](http://kernelnewbies.org/Linux_2_6_19#head-cdcbaa9c1b476decdc064e0a75d23d1328b1ddce))
 
-I want to use LVM to manage my hard disks, but Grub does not support boot from LVM, so have to separate a /boot partition. (Grub2 may support boot from LVM)
+I want to use LVM to manage my hard disks. 
+Grub does not support boot from LVM, so need to create a separate _/boot_ partition. (Grub2 may support boot from LVM)
 
-In order to start LVM must use ``vgscan``, ``vgchange`` and some other system tools, these tools are stores in the file system, but during the boot process
-the file system (LVM) haven't been activated yet. This came to a Chicken or the egg question.
+In order to start LVM require `vgscan`, `vgchange` and some other system tools, these tools are stores in the file system, but during the boot process the file system (LVM) haven't been activated yet. 
+Read file system to active file sytem. This came to a Chicken or the egg question.
+```
+vgscan
+vgchange -a y
+```
 
-To prevent this situation, create a initial RAM disk including those system tools, mount this RAM disk as a fake root file system first, 
-launch the tools and active LVM, finally switch the root to LVM file system.
+To prevent this situation, need to create an initial RAM disk including those system tools, mount this RAM disk as a fake root file system , 
+then run these tools to active LVM, finally switch the root file system to LVM.
 
-The detail boot process is like below (Referred from [here](http://www.midhgard.it/docs/lvm/html/install.kernel.html#boot.process.overview)):
+The detail boot process is descript below (Referred from [here](http://www.midhgard.it/docs/lvm/html/install.kernel.html#boot.process.overview)):
 
-* Grub is loaded.
-* Kernel image is loaded
-* RAM disk image with LVM support is loaded
-* RAM disk is mounted as root
-* LVM started
-* Volume groups are detected and activated
-* Real root file system over LVM is mounted read-only as new root file system
-* RAM disk is unmounted
-* LVM is started again (root has changed)
-* Root file system is checked for errors
-* Re-mount root read-write
-* Now root is ready, start the normal boot
+1. Grub is loaded
+2. Kernel image is loaded
+3. RAM disk image with LVM support is loaded
+4. RAM disk is mounted as root
+5. LVM started
+6. Volume groups are detected and activated
+7. Real root file system over LVM is mounted read-only as new root file system
+8. RAM disk is unmounted
+9. LVM is started again (root has changed)
+10. Root file system is checked for errors
+11. Re-mount root read-write
+12. Now root is ready, start the normal boot
 
-In fact, loading Kernel image and inital RAM disk is not via the file system interface(VFS), Grub read hard disk directly but follow the file system format.
+In fact, Grub loading Kernel image and inital RAM disk is not via the file system interface ([VFS](http://en.wikipedia.org/wiki/Virtual_file_system)), Grub read hard disk directly but follow the file system format.
 
-This process is called Grub stage1.5. You could find many file under /boot/grub end with 1_5, like _e2fs_stage1_5_, _fat_stage1_5_ etc.
-If there is no corresponding 1.5 stage file for you /boot paritition file system, you couldn't boot your system.
+This process is called **Grub stage1.5**. You could find many file under _/boot/grub_ directory end with _1_5_, 
+like _e2fs_stage1_5_, _fat_stage1_5_ etc.
+If there is no corresponding 1.5 stage file for you _/boot_ paritition file system, you couldn't load kernel to start system.
 
 I think [btrfs](https://btrfs.wiki.kernel.org/) is a better choice, but currently btrfs is still in development.
 
@@ -81,13 +89,13 @@ Create a separate partition to mount _/boot_
 ```
 
 ### Construct LVM
-LVM (Logical Volume Management)
+[LVM (Logical Volume Management)](http://en.wikipedia.org/wiki/Logical_Volume_Manager_\(Linux\))
 
-* Create PV (Physical Volume). PV indicate that which hard disk or partition you want to use to assemble the LVM.
+* Create PV (Physical Volume). PV indicate that which hard disk or partitions will be used to assemble the LVM.
 * Create VG (Volume Group). VG act like a pool or virtual disk, hide the real disk behind.
 * Create LV (Logical Volume). LV is like the traditional hard disk partition which can contain file system.
 
-In fact, create a LV is like create a block device which size can be changed.
+In fact, create a LV is like create a block device with dynamic capacity.
 ```
 pvcreate /dev/sda2 /dev/sdb /dev/sdc
 
@@ -105,12 +113,13 @@ Could use LVM strip to accelerate the disk speed, like
 ```
 lvcreate -i 3 -L 10G -n home vg
 ```
-Here ``-i 3`` option means map the LV to 3 PV, act like _RAID0_.
+Here `-i 3` option means map the LV to 3 PV, act like **[RAID 0](http://en.wikipedia.org/wiki/Standard_RAID_levels#RAID_0)**.
 
-LVM2 can do snapshot, I could use this feature to do the backup, that's why I create so many partitions.
-[Document about how to do LVM snapshot](http://tldp.org/HOWTO/LVM-HOWTO/snapshots_backup.html)
+LVM2 can do [snapshot](http://tldp.org/HOWTO/LVM-HOWTO/snapshots_backup.html), I could use this feature to do the backup, 
+that's why I create so many partitions.
 
 ### Create file system and mount
+
 Create file systems and mount block devices to correspoding mount point.
 ```
 mkfs.ext4 /dev/sda1
@@ -142,9 +151,9 @@ chmod 1777 /mnt/gentoo/tmp
 ```
 
 ## Install Gentoo base system
-Download stage3 file and the latest portage snapshot and extract them to /mnt/gentoo.
+Download stage3 file and the latest portage snapshot package, then extract them to /mnt/gentoo.
 
-Stage3 files are used to bootstrap Linux system. There are also stage1, stage2, but currently not supported by Gentoo.
+Stage3 file contains a full function Linux with mininal features. There are also stage1, stage2, but not supported by Gentoo right now.
 ```
 cd /mnt/gentoo
 wget http://mirrors.sohu.com/gentoo/releases/amd64/current-stage3/stage3-amd64-20120301.tar.bz2
@@ -155,12 +164,11 @@ tar xjf portage-latest.tar.bz2 -C /mnt/gentoo/usr
 
 mount -o bind /proc /mnt/gentoo/proc
 mount -o bind /dev  /mnt/gentoo/dev
-mount -o bind /sys  /mnt/gentoo/sys
 ```
 
 ### Configure Gentoo base system
 Copy DNS resolve configuration file, it contains the DNS server information.
-(This file was generated after network was setuped)
+(This file was generated after network was setupped)
 ```
 cp -L /etc/resolv.conf /mnt/gentoo/etc/
 ```
@@ -174,7 +182,6 @@ MAKEOPTS="-j3"
 ```
 
 ## Chroot to new Gentoo base system
-Below steps are follow [this Guide](http://www.gentoo.org/doc/en/handbook/handbook-amd64.xml).
 Configure the newly created Gentoo system, and make sure it can be started up next time.
 ```
 chroot /mnt/gentoo /bin/bash
@@ -206,11 +213,11 @@ emerge gentoo-sources
 Some packages like `grub` will read kernel configuration, it's better to configure kernel first.
 
 #### Configurre Linux kernels
-Run command ``lspci -k`` to view the driver current loaded by LiveCD.
+Run command `lspci -k` to view the driver current used by LiveCD, and enable these driver in Linux kernel.
 
-And [here](http://www.linuxtopia.org/online_books/linux_kernel/kernel_configuration/index.html) is a comprehensive document explain how to manually configure a kernel, especially the device driver which is the main part of Linux kernel.
+[Here](http://www.linuxtopia.org/online_books/linux_kernel/kernel_configuration/index.html) is a comprehensive document explain how to manually configure a kernel, especially the device driver which is the main part of Linux kernel.
 
-Because I need to create an initial RAM disk, so use ``sys-kernel/genkernel`` to make it simpler.
+Because I need to create an initial RAM disk, use `sys-kernel/genkernel` can make things much simpler.
 ```
 emerge genkernel
 genkernel --menuconfig --lvm --bootloader=grub all
@@ -221,7 +228,7 @@ genkernel --menuconfig --lvm --bootloader=grub all
 eselect profile list
 eselect profile set 7
 ```
-Once you selected ``no-multilib``, it's hard to get back.
+Once you selected `no-multilib`, it's hard to get back.
 
 ### Other configuration
 ```
@@ -231,8 +238,8 @@ locale-gen
 cp /usr/share/zoneinfo/UTC /etc/localtime
 echo "UTC" > /etc/timezone
 ```
-
 Install and configure support tools
+
 * app-admin/logrotate
 * app-admin/syslog-ng
 * app-portage/ufed

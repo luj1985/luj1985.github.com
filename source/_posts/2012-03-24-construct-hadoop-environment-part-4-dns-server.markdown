@@ -1,0 +1,171 @@
+---
+layout: post
+title: "Construct Hadoop Environment<br />Part 4 DNS Server"
+date: 2012-03-24 17:43
+comments: true
+categories: 
+---
+It's hard to remember IP address when the amount of machine grows, configure a DNS sever can reduce much pain.
+
+# DHCP static IP address
+It's better to assign static IP address which will be used by DNS. 
+
+So I configure some static IP addresses associate with MAC address in my router (DHCP).
+
+```
+MAC Address         IP Address
+00:00:00:00:00:03   192.168.2.103
+00:00:00:00:00:04   192.168.2.104
+00:00:00:00:00:05   192.168.2.105
+00:00:00:00:00:06   192.168.2.106
+...
+```
+Then every time when VM's MAC address was assigned, the IP address was assigned too.
+
+# Construct DNS server
+## Instll _BIND_
+```
+echo "net-dns/bind -berkdb" >> /etc/portage/package.use
+emerge -av net-dns/bind
+rc-update add named default
+/etc/init.d/named start
+```
+I choose `hcluster.org` as my domain name
+
+## Configure domain `hcluster.org`
+By default `net-dns/bind` supports `localhost` zone already.
+
+Modify _/etc/resolv.conf_, change the _nameserver_ point to my own DNS server, and do some a test
+```
+echo "nameserver 127.0.0.1" > /etc/resolv.conf
+host localhost
+```
+If everything is OK, the output lines are like
+```
+localhost has address 127.0.0.1
+localhost has IPv6 address ::1
+```
+
+## Edit _/etc/bind/named.conf_
+```
+acl "xfer" { none; };
+acl "trusted" { 127.0.0.0/8; 192.168.2.0/24; };
+
+options {
+    directory "/var/bind";
+    pid-file "/var/run/named/named.pid";
+    empty-zones-enable no;
+
+    listen-on-v6 { none; };
+    listen-on { 127.0.0.1; 192.168.2.101; };
+
+    allow-query { trusted; };
+    allow-query-cache { trusted; };
+    allow-recursion { trusted; };
+    allow-transfer { none; };
+    allow-update { none; };
+
+    forward first;
+    forwarders { 8.8.8.8; 8.8.8.4; };
+};
+
+include "/etc/bind/rndc.key";
+controls { inet 127.0.0.1 port 953 allow { 127.0.0.1/32; } keys { "rndc-key"; }; };
+
+zone "." in { type hint; file "/var/bind/root.cache"; };
+zone "localhost" IN { type master; file "pri/localhost.zone"; notify no; };
+zone "127.in-addr.arpa" IN { type master; file "pri/127.zone"; notify no; };
+zone "hcluster.org" IN { type master; file "pri/hcluster.org.zone"; notify no; };
+zone "2.168.192.in-addr.arpa" IN { type master; file "pri/2.168.192.zone"; notify no; };
+```
+
+## Add DNS record
+### Edit _/var/bind/pri/hcluster.org.zone_
+Hostname to IP address.
+```
+$TTL 1W
+@           IN      SOA     homuculus.org. root (
+                                      2008122601 ; Serial
+                                      28800      ; Refresh
+                                      14400      ; Retry
+                                      604800     ; Expire - 1 week
+                                      86400 )    ; Minimum
+            IN      NS      ns
+ns          IN      A       192.168.2.101
+router      IN      A       192.168.2.1
+hypervisor  IN      A       192.168.2.101
+
+gentoo      IN      A       192.168.2.103
+jobtracker  IN      A       192.168.2.104
+namenode1   IN      A       192.168.2.105
+namenode2   IN      A       192.168.2.106
+datanode1   IN      A       192.168.2.107
+datanode2   IN      A       192.168.2.108
+datanode3   IN      A       192.168.2.109
+datanode4   IN      A       192.168.2.110
+datanode5   IN      A       192.168.2.111
+```
+
+### Edit _/var/bind/pri/2.168.192.zone_
+IP address to hostname.
+```
+RIGIN 2.168.192.in-addr.arpa.
+$TTL 1W
+@       IN SOA      hcluster.org. root.hcluster.org. (
+                       2008122601      ; serial
+                       3H              ; refresh
+                       15M             ; retry
+                       1W              ; expiry
+                       1D )            ; minimum
+
+        IN NS       ns.hcluster.org.
+101     IN PTR      ns.hcluster.org.
+101     IN PTR      hypervisor.hcluster.org.
+1       IN PTR      router.hcluster.org.
+
+103     IN PTR      gentoo.hcluster.org.
+104     IN PTR      jobtracker.hadoop.hcluster.org.
+105     IN PTR      namenode1.hadoop.hcluster.org.     
+106     IN PTR      namenode2.hadoop.hcluster.org.
+107     IN PTR      datanode1.hadoop.hcluster.org.
+108     IN PTR      datanode2.hadoop.hcluster.org.
+109     IN PTR      datanode3.hadoop.hcluster.org.     
+110     IN PTR      datanode4.hadoop.hcluster.org.     
+111     IN PTR      datanode5.hadoop.hcluster.org.
+```
+
+### Permission
+Because `named` service was run as `named` user, need to change zone file permission.
+```
+chgrp named /var/bind/pri/*
+```
+Reload configuration file and do some test
+```
+rndc reload
+host jobtracker.hcluster.org
+host 192.168.2.104
+```
+The test result should like
+```
+jobtracker.hcluster.org has address 192.168.2.104
+104.2.168.192.in-addr.arpa domain name pointer jobtracker.hcluster.org.
+```
+
+# Change DHCP configuration on router
+Finally, login the router, change DHCP server configuration, point the DNS information to my own DNS server. And specify the default domain name as _hcluster.org_
+
+Then after client DHCP IP address renewed, the _/etc/resolv.conf_ is like
+```
+# Generated by dhcpcd from wlan0
+# /etc/resolv.conf.head can replace this line
+domain hcluster.org
+nameserver 192.168.2.101
+nameserver 192.168.1.1
+# /etc/resolv.conf.tail can replace this line
+```
+And I could access machine via short domain name
+```
+host ns
+host ns.hcluster.org
+dig -t A ns.hcluster.org
+```

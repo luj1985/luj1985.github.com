@@ -213,3 +213,7 @@ Follow the offical Apache Hadoop examples
 hadoop fs -put conf input
 hadoop jar hadoop-examples-1.0.1.jar grep input output 'dfs[a-z.]+'
 ```
+
+# Postscript
+Though Hadoop could runs on this "Cluster", but the performance is very low.
+I think I'd better use Hadoop Pseudo-Distributed mode instead...

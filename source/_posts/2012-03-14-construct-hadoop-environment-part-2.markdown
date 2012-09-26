@@ -16,7 +16,7 @@ The I/O model is directly derived from _QEMU_'s, with support for copy-on-write 
 But use _QEMU_ to do full virtualization will reduce the performance, so KVM introduce VirtIO to perform paravirtualization, 
 notice guest machine that it was running in a virtual environment.
 
-[Here](http://www.ibm.com/developerworks/linux/library/l-virtio/) is a very good document described the virtio.
+[Here](http://www.ibm.com/developerworks/linux/library/l-virtio/) is a very good document described the VirtIO.
 
 # KVM based hypervisor configuration
 ## Hardware 

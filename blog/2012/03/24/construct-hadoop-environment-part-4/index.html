@@ -1,0 +1,508 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Construct Hadoop Environment<br />Part 4 DNS Server - Lu Jun's blog</title>
+  <meta name="author" content="Lu Jun">
+
+  
+  <meta name="description" content="It&#8217;s hard to remember IP address when the amount of machine grows, configure a DNS sever can reduce much pain. DHCP static IP address It&#8217; &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://luj1985.github.com/blog/2012/03/24/construct-hadoop-environment-part-4/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Lu Jun's blog" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+<!--
+<script type="text/javascript"
+  src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      processEscapes: true
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i=0; i < all.length; i += 1) {
+      all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+</script>
+-->
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Lu Jun's blog</a></h1>
+  
+    <h2>A Little progress every day</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:luj1985.github.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Construct Hadoop Environment<br />Part 4 DNS Server</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-03-24T17:43:00+08:00" pubdate data-updated="true">Mar 24<span>th</span>, 2012</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>It&#8217;s hard to remember IP address when the amount of machine grows, configure a DNS sever can reduce much pain.</p>
+
+<h1>DHCP static IP address</h1>
+
+<p>It&#8217;s better to assign static IP address which will be used by DNS.</p>
+
+<p>So I configure some static IP addresses associate with MAC address in my router (DHCP).</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>MAC Address         IP Address
+</span><span class='line'>00:00:00:00:00:03   192.168.2.103
+</span><span class='line'>00:00:00:00:00:04   192.168.2.104
+</span><span class='line'>00:00:00:00:00:05   192.168.2.105
+</span><span class='line'>00:00:00:00:00:06   192.168.2.106
+</span><span class='line'>...</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then every time when VM&#8217;s MAC address was assigned, the IP address was assigned too.</p>
+
+<h1>Construct DNS server</h1>
+
+<h2>Instll <em>BIND</em></h2>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>echo "net-dns/bind -berkdb" &gt;&gt; /etc/portage/package.use
+</span><span class='line'>emerge -av net-dns/bind
+</span><span class='line'>rc-update add named default
+</span><span class='line'>/etc/init.d/named start</span></code></pre></td></tr></table></div></figure>
+
+
+<p>I choose <code>hcluster.org</code> as my domain name</p>
+
+<h2>Configure domain <code>hcluster.org</code></h2>
+
+<p>By default <code>net-dns/bind</code> supports <code>localhost</code> zone already.</p>
+
+<p>Modify <em>/etc/resolv.conf</em>, change the <em>nameserver</em> point to my own DNS server, and do some a test</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>echo "nameserver 127.0.0.1" &gt; /etc/resolv.conf
+</span><span class='line'>host localhost</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If everything is OK, the output lines are like</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>localhost has address 127.0.0.1
+</span><span class='line'>localhost has IPv6 address ::1</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Edit <em>/etc/bind/named.conf</em></h2>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>acl "xfer" { none; };
+</span><span class='line'>acl "trusted" { 127.0.0.0/8; 192.168.2.0/24; };
+</span><span class='line'>
+</span><span class='line'>options {
+</span><span class='line'>    directory "/var/bind";
+</span><span class='line'>    pid-file "/var/run/named/named.pid";
+</span><span class='line'>    empty-zones-enable no;
+</span><span class='line'>
+</span><span class='line'>    listen-on-v6 { none; };
+</span><span class='line'>    listen-on { 127.0.0.1; 192.168.2.101; };
+</span><span class='line'>
+</span><span class='line'>    allow-query { trusted; };
+</span><span class='line'>    allow-query-cache { trusted; };
+</span><span class='line'>    allow-recursion { trusted; };
+</span><span class='line'>    allow-transfer { none; };
+</span><span class='line'>    allow-update { none; };
+</span><span class='line'>
+</span><span class='line'>    forward first;
+</span><span class='line'>    forwarders { 8.8.8.8; 8.8.8.4; };
+</span><span class='line'>};
+</span><span class='line'>
+</span><span class='line'>include "/etc/bind/rndc.key";
+</span><span class='line'>controls { inet 127.0.0.1 port 953 allow { 127.0.0.1/32; } keys { "rndc-key"; }; };
+</span><span class='line'>
+</span><span class='line'>zone "." in { type hint; file "/var/bind/root.cache"; };
+</span><span class='line'>zone "localhost" IN { type master; file "pri/localhost.zone"; notify no; };
+</span><span class='line'>zone "127.in-addr.arpa" IN { type master; file "pri/127.zone"; notify no; };
+</span><span class='line'>zone "hcluster.org" IN { type master; file "pri/hcluster.org.zone"; notify no; };
+</span><span class='line'>zone "2.168.192.in-addr.arpa" IN { type master; file "pri/2.168.192.zone"; notify no; };</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Add DNS record</h2>
+
+<h3>Edit <em>/var/bind/pri/hcluster.org.zone</em></h3>
+
+<p>Hostname to IP address.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$TTL 1W
+</span><span class='line'>@           IN      SOA     homuculus.org. root (
+</span><span class='line'>                                      2008122601 ; Serial
+</span><span class='line'>                                      28800      ; Refresh
+</span><span class='line'>                                      14400      ; Retry
+</span><span class='line'>                                      604800     ; Expire - 1 week
+</span><span class='line'>                                      86400 )    ; Minimum
+</span><span class='line'>            IN      NS      ns
+</span><span class='line'>ns          IN      A       192.168.2.101
+</span><span class='line'>router      IN      A       192.168.2.1
+</span><span class='line'>hypervisor  IN      A       192.168.2.101
+</span><span class='line'>
+</span><span class='line'>gentoo      IN      A       192.168.2.103
+</span><span class='line'>jobtracker  IN      A       192.168.2.104
+</span><span class='line'>namenode1   IN      A       192.168.2.105
+</span><span class='line'>namenode2   IN      A       192.168.2.106
+</span><span class='line'>datanode1   IN      A       192.168.2.107
+</span><span class='line'>datanode2   IN      A       192.168.2.108
+</span><span class='line'>datanode3   IN      A       192.168.2.109
+</span><span class='line'>datanode4   IN      A       192.168.2.110
+</span><span class='line'>datanode5   IN      A       192.168.2.111</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Edit <em>/var/bind/pri/2.168.192.zone</em></h3>
+
+<p>IP address to hostname.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>RIGIN 2.168.192.in-addr.arpa.
+</span><span class='line'>$TTL 1W
+</span><span class='line'>@       IN SOA      hcluster.org. root.hcluster.org. (
+</span><span class='line'>                       2008122601      ; serial
+</span><span class='line'>                       3H              ; refresh
+</span><span class='line'>                       15M             ; retry
+</span><span class='line'>                       1W              ; expiry
+</span><span class='line'>                       1D )            ; minimum
+</span><span class='line'>
+</span><span class='line'>        IN NS       ns.hcluster.org.
+</span><span class='line'>101     IN PTR      ns.hcluster.org.
+</span><span class='line'>101     IN PTR      hypervisor.hcluster.org.
+</span><span class='line'>1       IN PTR      router.hcluster.org.
+</span><span class='line'>
+</span><span class='line'>103     IN PTR      gentoo.hcluster.org.
+</span><span class='line'>104     IN PTR      jobtracker.hadoop.hcluster.org.
+</span><span class='line'>105     IN PTR      namenode1.hadoop.hcluster.org.     
+</span><span class='line'>106     IN PTR      namenode2.hadoop.hcluster.org.
+</span><span class='line'>107     IN PTR      datanode1.hadoop.hcluster.org.
+</span><span class='line'>108     IN PTR      datanode2.hadoop.hcluster.org.
+</span><span class='line'>109     IN PTR      datanode3.hadoop.hcluster.org.     
+</span><span class='line'>110     IN PTR      datanode4.hadoop.hcluster.org.     
+</span><span class='line'>111     IN PTR      datanode5.hadoop.hcluster.org.</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Permission</h3>
+
+<p>Because <code>named</code> service was run as <code>named</code> user, need to change zone file permission.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>chgrp named /var/bind/pri/*</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Reload configuration file and do some test</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>rndc reload
+</span><span class='line'>host jobtracker.hcluster.org
+</span><span class='line'>host 192.168.2.104</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The test result should like</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>jobtracker.hcluster.org has address 192.168.2.104
+</span><span class='line'>104.2.168.192.in-addr.arpa domain name pointer jobtracker.hcluster.org.</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>Change DHCP configuration on router</h1>
+
+<p>Finally, login the router, change DHCP server configuration, point the DNS information to my own DNS server. And specify the default domain name as <em>hcluster.org</em></p>
+
+<p>Then after client DHCP IP address renewed, the <em>/etc/resolv.conf</em> is like</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># Generated by dhcpcd from wlan0
+</span><span class='line'># /etc/resolv.conf.head can replace this line
+</span><span class='line'>domain hcluster.org
+</span><span class='line'>nameserver 192.168.2.101
+</span><span class='line'>nameserver 192.168.1.1
+</span><span class='line'># /etc/resolv.conf.tail can replace this line</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And I could access machine via short domain name</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>host ns
+</span><span class='line'>host ns.hcluster.org
+</span><span class='line'>dig -t A ns.hcluster.org</span></code></pre></td></tr></table></div></figure>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Lu Jun</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-03-24T17:43:00+08:00" pubdate data-updated="true">Mar 24<span>th</span>, 2012</time>
+      
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/03/17/construct-hadoop-environment-part-3/" title="Previous Post: Construct Hadoop Environment<br />Part 3 KVM Guest">&laquo; Construct Hadoop Environment<br />Part 3 KVM Guest</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2012/03/25/construct-hadoop-environment-part-5/" title="Next Post: Construct Hadoop Environment<br />Part 5 Install Hadoop">Construct Hadoop Environment<br />Part 5 Install Hadoop &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2012/11/10/html5-spiral-layout/">HTML5 Spiral Layout</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/25/construct-hadoop-environment-part-5/">Construct Hadoop Environment<br />Part 5 Install Hadoop</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/24/construct-hadoop-environment-part-4/">Construct Hadoop Environment<br />Part 4 DNS Server</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/17/construct-hadoop-environment-part-3/">Construct Hadoop Environment<br />Part 3 KVM Guest</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/14/construct-hadoop-environment-part-2/">Construct Hadoop Environment<br />Part 2 KVM Host</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2012 - Lu Jun -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

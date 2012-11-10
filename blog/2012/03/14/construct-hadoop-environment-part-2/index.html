@@ -1,0 +1,500 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Construct Hadoop Environment<br />Part 2 KVM Host - Lu Jun's blog</title>
+  <meta name="author" content="Lu Jun">
+
+  
+  <meta name="description" content="KVM has two components A device driver for managing the virtulization hardware; this driver exposes its capabilities via a character device /dev/kvm &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://luj1985.github.com/blog/2012/03/14/construct-hadoop-environment-part-2/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Lu Jun's blog" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+<!--
+<script type="text/javascript"
+  src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      processEscapes: true
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i=0; i < all.length; i += 1) {
+      all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+</script>
+-->
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Lu Jun's blog</a></h1>
+  
+    <h2>A Little progress every day</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:luj1985.github.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Construct Hadoop Environment<br />Part 2 KVM Host</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-03-14T01:03:00+08:00" pubdate data-updated="true">Mar 14<span>th</span>, 2012</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>KVM has two components</p>
+
+<ul>
+<li>A device driver for managing the virtulization hardware; this driver exposes its capabilities via a character device <em>/dev/kvm</em></li>
+<li>A user-space component for emulating PC hardware; this is a lightly modified <em>QEMU</em> process.</li>
+</ul>
+
+
+<p>The modified <em>QEMU</em> process <em>mmap()</em> the guest&#8217;s physical memory and calls the kernel mode driver to execute in guest mode.</p>
+
+<p>The I/O model is directly derived from <em>QEMU</em>&#8217;s, with support for copy-on-write disk images and other <em>QEMU</em> features.
+But use <em>QEMU</em> to do full virtualization will reduce the performance, so KVM introduce VirtIO to perform paravirtualization,
+notice guest machine that it was running in a virtual environment.</p>
+
+<p><a href="http://www.ibm.com/developerworks/linux/library/l-virtio/">Here</a> is a very good document described the VirtIO.</p>
+
+<h1>KVM based hypervisor configuration</h1>
+
+<h2>Hardware</h2>
+
+<p>CPU must have virtualization instruction set support</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>grep '(vmx|svm)' /proc/cpuinfo</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>svm = secure virtual machine (AMD)</li>
+<li>vmx = virtual machine extensions (Intel)</li>
+</ul>
+
+
+<p>My CPU is AMD based, the instruction set <code>svm</code> was found.</p>
+
+<h2>KVM host(hypervisor) configuration</h2>
+
+<p>Tune kernel to support KVM, and enable network protocol to support bridge.</p>
+
+<h3>Kernel configuration (with paravirtualization support)</h3>
+
+<p><a href="http://www.linux-kvm.org/page/Tuning_Kernel#Kernel_for_host">Here</a> is a official document about tuning the kernel of KVM host</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>General setup
+</span><span class='line'>  [*] Control Group support
+</span><span class='line'>
+</span><span class='line'>Processor type and features
+</span><span class='line'>  [*] High Resolution Timer Support
+</span><span class='line'>  [*] Allow for memory compaction
+</span><span class='line'>  [*] Page migration
+</span><span class='line'>  [*] Enable KSM for page merging
+</span><span class='line'>  [*] transparent Hugepage Support
+</span><span class='line'>
+</span><span class='line'>Device Drivers
+</span><span class='line'>  Character devices
+</span><span class='line'>    [*] HPET - High Precision Event Timer
+</span><span class='line'>
+</span><span class='line'>[*] Virtualization
+</span><span class='line'>  &lt;M&gt; Kernel-based Virtual Machine (KVM) support
+</span><span class='line'>  &lt; &gt;   KVM for Intel processors support
+</span><span class='line'>  &lt;M&gt;   KVM for AMD processors support
+</span><span class='line'>  &lt;M&gt; Host kernel accelerator for virtio net</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Network bridge support</h3>
+
+<p>I want to connect to KVM guest remotely, need enable bridge networking.</p>
+
+<p>To enable network bridge need following kernel options.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>[*] Networking support
+</span><span class='line'>  Networking options
+</span><span class='line'>    &lt;M&gt; 802.1d Ethernet Bridging
+</span><span class='line'>    &lt;M&gt; 802.1Q VLAN Support
+</span><span class='line'>
+</span><span class='line'>Device Drivers
+</span><span class='line'>[*] Network device support
+</span><span class='line'>  [*] Network core driver support
+</span><span class='line'>    &lt;M&gt; Universal TUN/TAP device driver support</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>/etc/conf.d/modules</h3>
+
+<p>Create config file to load kernel module</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>modules="kvm-amd bridge 8021q tun vhost-net"</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>User space packages</h2>
+
+<p>emerge following user space tools</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>app-emulation/qemu-kvm qemu-ifup xattr tls
+</span><span class='line'>net-misc/bridge-utils</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>Bridge network configuration</h1>
+
+<p>Direct bridging (guests use an IP address on the same subnet as the host)</p>
+
+<blockquote><p>The most transparent option to allow your guests access to the internet is the &#8220;virtual hub&#8221;. In this scheme, the bridge connects eth0 and your tuntap interfaces together, routing packets as if it were a real &#8220;old fashioned&#8221; hub (not a switch). The key to this approach is to make sure you have unique mac addresses on both the host&#8217;s tuntap interface as well as the guest.</p><footer><strong>KVM</strong> <cite><a href='http://en.gentoo-wiki.com/wiki/KVM'>en.gentoo-wiki.com/wiki/KVM/&hellip;</a></cite></footer></blockquote>
+
+
+<p>I use QEMU Tap networking backend, <a href="http://wiki.qemu.org/Documentation/Networking#Tap">it require to invoke QEMU as root</a></p>
+
+<h2>/etc/init.d</h2>
+
+<p>Create network device</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>ln -s /etc/init.d/net.lo /etc/init.d/net.br0
+</span><span class='line'>rc-update add net.br0 default</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Enable KSM</h2>
+
+<p>KSM was not enabled by default.</p>
+
+<p>Create file <em>/etc/local.d/ksm.start</em></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>echo 1 &gt; /sys/kernel/mm/ksm/run</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Grant executable permission</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>chmod a+x /etc/local.d/ksm.start</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In Gentoo, all script in directory <em>/etc/local.d</em> will be executed by <em>/etc/init.d/local</em> when system starting up</p>
+
+<h2>/etc/conf.d/net</h2>
+
+<p>Network startup options</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>bridge_br0="eth0"
+</span><span class='line'>config_eth0="null"
+</span><span class='line'>
+</span><span class='line'>brctl_br0="setfd 0 sethello 1 stp off"
+</span><span class='line'>config_br0="dhcp"
+</span><span class='line'>
+</span><span class='line'>depend_br0() {
+</span><span class='line'>    need net.eth0
+</span><span class='line'>}</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Create script to manage network device</h2>
+
+<p>I enabled <code>qemu-ifup</code> USE flag of app-emulation/qemu-kvm package.
+But the script were under <em>/etc/qemu/</em> which is not the default location <em>qemu-kvm</em> use.</p>
+
+<p>And the program path in script <em>/etc/qemu/qemu-ifup</em> is hard coded and is not suite for Gentoo system.
+So I created the following two scripts instead, and grant executable permission.</p>
+
+<h3>/etc/qemu-ifup</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#!/bin/sh
+</span><span class='line'>
+</span><span class='line'>switch=$(/sbin/ip route list | awk '/^default / { print $5 }')
+</span><span class='line'>/sbin/ifconfig $1 0.0.0.0 up
+</span><span class='line'>/sbin/brctl addif ${switch} $1</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>/etc/qemu-ifdown</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>#!/bin/sh
+</span><span class='line'>
+</span><span class='line'>switch=$(/sbin/ip route list | awk '/^default / { print $5 }')
+</span><span class='line'>/sbin/ifconfig $1 0.0.0.0 down
+</span><span class='line'>/sbin/brctl delif ${switch} $1</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Make configuration take effect</h2>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>modprobe kvm-amd bridge 8021q tun vhost-net
+</span><span class='line'>/etc/init.d/net.eth0 restart
+</span><span class='line'>/etc/init.d/net.br0 start</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Or simply reboot the system.</p>
+
+<h1>Test KVM guest machine</h1>
+
+<p>Login hypervisor as root and run following command to create guest machine.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>qemu-img create -f qcow2 -o preallocation=metadata gentoo.img 10G
+</span><span class='line'>qemu-kvm -hda gentoo.img -cdrom install-amd64-minimal-20120223.iso \
+</span><span class='line'>         -net nic,mac=00:00:00:00:00:01,vlan=0 -net tap,vlan=0 -boot d -vnc :0</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Use option <code>-vnc :0</code> to open a VNC port, then I could use <code>vncviewer</code> to connect it remotely.
+IP address of my KVM host server is 192.168.2.101, then use following command to connect VNC</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>vncviewer 192.168.2.101:0</span></code></pre></td></tr></table></div></figure>
+
+
+<p>After VNC connected, active network card in guest machine, start SSH server.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>ifconfig eth0 up
+</span><span class='line'>dhcpcd eth0
+</span><span class='line'>passwd
+</span><span class='line'>/etc/init.d/sshd start</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The guest machine gains IP address 192.168.2.103. Then it should be able to access from outside world.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>ssh root@192.168.2.103</span></code></pre></td></tr></table></div></figure>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Lu Jun</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-03-14T01:03:00+08:00" pubdate data-updated="true">Mar 14<span>th</span>, 2012</time>
+      
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/03/12/construct-hadoop-environment-part-1/" title="Previous Post: Construct Hadoop Environment<br />Part 1 Gentoo Linux">&laquo; Construct Hadoop Environment<br />Part 1 Gentoo Linux</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2012/03/17/construct-hadoop-environment-part-3/" title="Next Post: Construct Hadoop Environment<br />Part 3 KVM Guest">Construct Hadoop Environment<br />Part 3 KVM Guest &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2012/11/10/html5-spiral-layout/">HTML5 Spiral Layout</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/25/construct-hadoop-environment-part-5/">Construct Hadoop Environment<br />Part 5 Install Hadoop</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/24/construct-hadoop-environment-part-4/">Construct Hadoop Environment<br />Part 4 DNS Server</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/17/construct-hadoop-environment-part-3/">Construct Hadoop Environment<br />Part 3 KVM Guest</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/14/construct-hadoop-environment-part-2/">Construct Hadoop Environment<br />Part 2 KVM Host</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2012 - Lu Jun -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

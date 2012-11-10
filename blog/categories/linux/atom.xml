@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Linux | Lu Jun's blog]]></title>
+  <link href="http://luj1985.github.com/blog/categories/linux/atom.xml" rel="self"/>
+  <link href="http://luj1985.github.com/"/>
+  <updated>2012-11-10T12:30:13+08:00</updated>
+  <id>http://luj1985.github.com/</id>
+  <author>
+    <name><![CDATA[Lu Jun]]></name>
+    <email><![CDATA[luj1985@gmail.com]]></email>
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Construct Hadoop Environment<br />Part 1 Gentoo Linux]]></title>
+    <link href="http://luj1985.github.com/blog/2012/03/12/construct-hadoop-environment-part-1/"/>
+    <updated>2012-03-12T16:38:00+08:00</updated>
+    <id>http://luj1985.github.com/blog/2012/03/12/construct-hadoop-environment-part-1</id>
+    <content type="html"><![CDATA[<p>I want to do some Hadoop experiments, but currently I don't have enough machine to run Hadoop in full-distribute mode.</p>
+
+<p>But I have a PC in my hand, and I'd like to configure this machine as hypervisor and run several guest machines on it.
+All guest machines should be able to communicate with each other, and should be able to access from a remote machine.</p>
+
+<p>Here I choose Gentoo as the operation system of hypervisor.</p>
+
+<h1>Preparation</h1>
+
+<p>Firstly download the minimal installation media from <a href="http://www.gentoo.org/main/en/where.xml">Gentoo offical site</a>,
+Use any Live CD is OK, the purpose of this media is to boot system up.</p>
+
+<p>The CD-ROM of my machine does not function well, so I create a bootable Live USB drive
+using <a href="http://unetbootin.sourceforge.net/">UNetbootin</a>, and boot from USB drive.</p>
+
+<h1>Gentoo Installation</h1>
+
+<p>Below steps refer <a href="http://www.gentoo.org/doc/en/handbook/handbook-amd64.xml">Gentoo Handbook</a> and <a href="http://www.gentoo.org/doc/en/lvm2.xml">Gentoo LVM Guide</a></p>
+
+<h2>Setup network</h2>
+
+<p>Gentoo installation process relies on network heavily.
+The installation media only contains some nesessary programs to bootstrap system.
+Other source code packages require download from remote site (Gentoo portage)</p>
+
+<p>Active network card first, then use DHCP client to obtain an IP address and DNS information.
+<code>
+ifconfig eth0 up
+dhcpcd eth0
+</code></p>
+
+<h2>Manage hard disk</h2>
+
+<p>There are three hard disks installed in my machine
+<code>
+/dev/sda 120G
+/dev/sdb 500G
+/dev/sdc 500G
+</code>
+Though my <em>/dev/sda</em> is a <strong>PATA</strong> device, but it still be recoginized as <strong>SATA</strong>.
+I did some search and found that kernel 2.6.19 has merged PATA drivers into <strong>SATA</strong>,
+this make the device file name starts with <em>sd</em>
+(<a href="http://kernelnewbies.org/Linux_2_6_19#head-cdcbaa9c1b476decdc064e0a75d23d1328b1ddce">Libata PATA (Parallel ATA) merge</a>)</p>
+
+<p>I want to use LVM to manage my hard disks.
+Grub does not support boot from LVM, so need to create a separate <em>/boot</em> partition. (Grub2 may support boot from LVM directly)</p>
+
+<p>In order to start LVM <code>vgscan</code>, <code>vgchange</code> and some other system tools are required, and these tools are stores in the file system,
+but during the boot process the file system (LVM) haven't been activated yet.
+Read file system to active file sytem. This came to a Chicken or the egg question.
+<code>
+vgscan
+vgchange -a y
+</code></p>
+
+<p>To prevent this situation Linux need to create an initial RAM disk including those system tools, mount this RAM disk as a fake root file system ,
+then run these tools to active LVM, finally switch the root file system to LVM.</p>
+
+<p>The detail boot process is descript below (Referred from <a href="http://www.midhgard.it/docs/lvm/html/install.kernel.html#boot.process.overview">here</a>):</p>
+
+<ol>
+<li>Grub is loaded</li>
+<li>Kernel image is loaded</li>
+<li>RAM disk image with LVM support is loaded</li>
+<li>RAM disk is mounted as root</li>
+<li>LVM started</li>
+<li>Volume groups are detected and activated</li>
+<li>Real root file system over LVM is mounted read-only as new root file system</li>
+<li>RAM disk is unmounted</li>
+<li>LVM is started again (root has changed)</li>
+<li>Root file system is checked for errors</li>
+<li>Re-mount root read-write</li>
+<li>Now root is ready, start the normal boot</li>
+</ol>
+
+
+<p>In fact, Grub loading Kernel image and inital RAM disk is not via the file system interface (<a href="http://en.wikipedia.org/wiki/Virtual_file_system">VFS</a>),
+Grub read hard disk directly but follow the file system format.</p>
+
+<p>This process is called <strong>Grub stage1.5</strong>. You could find many file under <em>/boot/grub</em> directory end with <em>1_5</em>,
+like <em>e2fs_stage1_5</em>, <em>fat_stage1_5</em> etc.
+If there is no corresponding 1.5 stage file for you <em>/boot</em> paritition file system, you couldn't load kernel to start system.</p>
+
+<p>I think <a href="https://btrfs.wiki.kernel.org/">btrfs</a> is a better choice than LVM, but currently btrfs is still in development.</p>
+
+<h3>Create partition</h3>
+
+<p>Create a separate partition to mount <em>/boot</em>
+<code>
+   Device  Boot     Start         End      Blocks   Id  System
+/dev/sda1   *        2048      104447       51200   83  Linux
+/dev/sda2          104448   234441647   117168600   83  Linux LVM
+</code></p>
+
+<h3>Construct LVM</h3>
+
+<p><a href="http://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)">LVM (Logical Volume Management)</a></p>
+
+<ul>
+<li>Create PV (Physical Volume). PV indicate that which hard disk or partitions will be used to assemble the LVM.</li>
+<li>Create VG (Volume Group). VG act like a pool or virtual disk, hide the real disk behind.</li>
+<li>Create LV (Logical Volume). LV is like the traditional hard disk partition which can contain file system.</li>
+</ul>
+
+
+<p>In fact, create a LV is like create a block device but with dynamic capacity.
+```
+pvcreate /dev/sda2 /dev/sdb /dev/sdc</p>
+
+<p>vgcreate vg /dev/sda2 /dev/sdb /dev/sdc</p>
+
+<p>lvcreate -L 2G  -n swap    vg
+lvcreate -L 4G  -n root    vg
+lvcreate -L 10G -n home    vg
+lvcreate -L 5G  -n var     vg
+lvcreate -L 5G  -n vartmp  vg
+lvcreate -L 10G -n portage vg
+lvcreate -L 5G  -n tmp     vg
+<code>
+Could use LVM strip to accelerate the disk speed, like
+</code>
+lvcreate -i 3 -L 10G -n home vg
+<code>``
+Here</code>-i 3` option means map the LV to 3 PV, act like <strong><a href="http://en.wikipedia.org/wiki/Standard_RAID_levels#RAID_0">RAID 0</a></strong>.</p>
+
+<p>LVM2 can do <a href="http://tldp.org/HOWTO/LVM-HOWTO/snapshots_backup.html">snapshot</a>, I could use this feature to perform the backup,
+that's why I create so many partitions.</p>
+
+<h3>Create file system and mount</h3>
+
+<p>Create file systems and mount block devices to correspoding mount point.
+```
+mkfs.ext4 /dev/sda1
+mkfs.ext4 /dev/vg/root
+mkfs.ext4 /dev/vg/home
+mkfs.ext4 /dev/vg/portage
+mkfs.ext4 /dev/vg/var
+mkfs.ext4 /dev/vg/vartmp
+mkfs.ext4 /dev/vg/tmp
+mkswap /dev/vg/swap</p>
+
+<p>mount /dev/vg/root /mnt/gentoo</p>
+
+<p>mkdir -p /mnt/gentoo/{boot,home,var,tmp,usr/portage}
+mount /dev/sda1 /mnt/gentoo/boot</p>
+
+<p>mount /dev/vg/home    /mnt/gentoo/home
+mount /dev/vg/var     /mnt/gentoo/var
+mount /dev/vg/tmp     /mnt/gentoo/tmp
+mount /dev/vg/portage /mnt/gentoo/usr/portage</p>
+
+<p>mkdir /mnt/gentoo/var/tmp
+mount /dev/vg/vartmp /mnt/gentoo/var/tmp</p>
+
+<p>swapon /dev/vg/swap</p>
+
+<p>chmod 1777 /mnt/gentoo/var/tmp
+chmod 1777 /mnt/gentoo/tmp
+```</p>
+
+<h2>Install Gentoo base system</h2>
+
+<p>Download <em>stage3</em> file and the latest <em>portage</em> snapshot package, then extract them to /mnt/gentoo.</p>
+
+<p>Stage3 file contains a full function Linux with mininal features. There are also stage1, stage2, but not supported by Gentoo right now.
+```
+cd /mnt/gentoo
+wget http://mirrors.sohu.com/gentoo/releases/amd64/current-stage3/stage3-amd64-20120301.tar.bz2
+wget http://mirrors.sohu.com/gentoo/snapshots/portage-latest.tar.bz2</p>
+
+<p>tar xjpf stage3-amd64-20120216.tar.bz2
+tar xjf portage-latest.tar.bz2 -C /mnt/gentoo/usr</p>
+
+<p>mount -o bind /proc /mnt/gentoo/proc
+mount -o bind /dev  /mnt/gentoo/dev
+```</p>
+
+<h3>Configure Gentoo base system</h3>
+
+<p>Copy DNS resolve configuration file, it contains the DNS server information.
+(This file was generated after network was setupped)
+<code>
+cp -L /etc/resolv.conf /mnt/gentoo/etc/
+</code></p>
+
+<p>Modify make.conf
+/mnt/gentoo/etc/make.conf
+<code>
+CFLAGS="-march=k8 -O3 -pipe -fomit-frame-pointer"
+USE="-X -gtk -qt -gnome -kde -ipv6 mmx sse sse2"
+MAKEOPTS="-j3"
+</code></p>
+
+<h2>Chroot to new Gentoo base system</h2>
+
+<p>Configure the newly created Gentoo system, and make sure it can be started up next time.
+```
+chroot /mnt/gentoo /bin/bash</p>
+
+<p>env-update
+source /etc/profile
+```</p>
+
+<h3>Assign the password of root user</h3>
+
+<p><code>
+passwd
+</code>
+Otherwise you couldn't login into the newly created system after reboot.</p>
+
+<h3>Sync portage tree</h3>
+
+<p><code>
+emerge --sync
+</code>
+or use
+<code>
+emerge-webrsync
+</code>
+From the manual page, <code>emerge-webrsync</code> will download the entire portage tree as a tarball, if it's the first time do the sync it will be much efficient.</p>
+
+<h3>Install and configure kernel source</h3>
+
+<p><code>
+emerge gentoo-sources
+</code>
+Some packages like <code>grub</code> will read kernel configuration, it's better to configure kernel first.</p>
+
+<h4>Configurre Linux kernels</h4>
+
+<p>Run command <code>lspci -k</code> to view the driver current used by LiveCD, and enable them in Linux kernel.</p>
+
+<p><a href="http://www.linuxtopia.org/online_books/linux_kernel/kernel_configuration/index.html">Here</a> is a comprehensive document explain how to manually configure a kernel,
+especially how to find the correct device driver.</p>
+
+<p>Because I need to create an initial RAM disk, install <code>sys-kernel/genkernel</code> package can make things much simpler.
+<code>
+emerge genkernel
+genkernel --menuconfig --lvm --bootloader=grub all
+</code></p>
+
+<h3>Select profile</h3>
+
+<p><code>
+eselect profile list
+eselect profile set 7
+</code>
+Once you selected <code>no-multilib</code>, it's a little hard to get back.</p>
+
+<h3>Other configuration</h3>
+
+<p>```
+echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+locale-gen</p>
+
+<p>cp /usr/share/zoneinfo/UTC /etc/localtime
+echo "UTC" > /etc/timezone
+```
+Install and configure support tools</p>
+
+<ul>
+<li>app-admin/logrotate</li>
+<li>app-admin/syslog-ng</li>
+<li>app-portage/ufed</li>
+<li>app-portage/eix</li>
+<li>app-portage/gentoolkit</li>
+<li>app-editors/vim</li>
+<li>net-misc/dhcpcd</li>
+<li>sys-apps/mlocate</li>
+<li>sys-process/vixie-cron</li>
+<li>sys-process/htop</li>
+<li>sys-fs/e2fsprogs</li>
+<li>sys-fs/lvm2</li>
+</ul>
+
+
+<p>```
+rc-update add syslog-ng default
+rc-update add vixie-cron default
+rc-update add sshd default
+rc-update add lvm boot</p>
+
+<p>ln -s /etc/init.d/net.lo /etc/init.d/net.eth0
+rc-update add net.eth0 default
+echo config_eth0=\"dhcp\" >> /etc/conf.d/net
+```</p>
+
+<h3>Edit /etc/fstab</h3>
+
+<p><code>
+/dev/mapper/vg-root     /             ext4  noatime  1 1
+UUID=b10055bb-2e44-485e-9964-c37e4fea0f71 /boot   ext4    noatime  1 2
+/dev/mapper/vg-home     /home         ext4  noatime  0 0
+/dev/mapper/vg-var      /var          ext4  noatime  0 0
+/dev/mapper/vg-vartmp   /var/tmp      ext4  noatime  0 0
+/dev/mapper/vg-tmp      /tmp          ext4  noatime  0 0
+/dev/mapper/vg-portage  /usr/portage  ext4  noatime  0 0
+/dev/mapper/vg-swap     swap          swap  sw       0 0
+</code>
+Recommand use UUID to identify the block device. Because the device label like <em>/dev/sda</em> many change after reboot.</p>
+
+<p>Run command <code>blkid</code> or <code>ls -l /dev/disk/by-uuid</code> to discover the device UUID.</p>
+
+<h3>Install Grub</h3>
+
+<p>I have chosen <em>no-multilib</em> profile, it ask to install <em>grub-static</em> package instead of <em>grub</em>
+```
+emerge grub-static
+grep -v rootfs /proc/mounts > /etc/mtab</p>
+
+<p>grub
+grub> find /boot/grub/stage1
+grub> root (hd0,0)
+grub> setup (hd0)
+grub> quit
+<code>
+Edit grub.conf
+</code>
+default 0
+timeout 1</p>
+
+<p>title Gentoo Linux
+root (hd0,0)
+kernel /boot/kernel-genkernel-x86_64-3.2.1-gentoo-r2 root=/dev/ram0 real_root=/dev/vg/root dolvm rootfstype=ext4 vga=791
+initrd /boot/initramfs-genkernel-x86_64-3.2.1-gentoo-r2
+```</p>
+
+<h1>Post installation</h1>
+
+<p>Run command to recompile whole system, and remove the unneeded packages
+<code>
+emerge --emptytree world
+emerge --depclean
+revdep-rebuild
+</code></p>
+]]></content>
+  </entry>
+  
+</feed>

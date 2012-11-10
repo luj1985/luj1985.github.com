@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: javascript | Lu Jun's blog]]></title>
+  <link href="http://luj1985.github.com/blog/categories/javascript/atom.xml" rel="self"/>
+  <link href="http://luj1985.github.com/"/>
+  <updated>2012-11-10T12:30:13+08:00</updated>
+  <id>http://luj1985.github.com/</id>
+  <author>
+    <name><![CDATA[Lu Jun]]></name>
+    <email><![CDATA[luj1985@gmail.com]]></email>
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[HTML5 Spiral Layout]]></title>
+    <link href="http://luj1985.github.com/blog/2012/11/10/html5-spiral-layout/"/>
+    <updated>2012-11-10T10:38:00+08:00</updated>
+    <id>http://luj1985.github.com/blog/2012/11/10/html5-spiral-layout</id>
+    <content type="html"><![CDATA[<p>仿照<a href="http://awesome.naquadah.org/">Awesome窗口管理器</a>的Spiral Layout做了一个Web布局方式。</p>
+
+<p>可以运行于Firefox, Chrome, Opera。Safari应该也是可以的，但没有测试过。截图如下，可以通过鼠标滚轮切换内容。</p>
+
+<p><img src="http://farm9.staticflickr.com/8348/8171041922_f43377aa0d.jpg"></p>
+
+<p>代码链接: <a href="https://github.com/luj1985/html5/tree/master/layout">https://github.com/luj1985/html5/tree/master/layout</a></p>
+]]></content>
+  </entry>
+  
+</feed>

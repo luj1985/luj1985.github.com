@@ -1,0 +1,722 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Construct Hadoop Environment<br />Part 3 KVM Guest - Lu Jun's blog</title>
+  <meta name="author" content="Lu Jun">
+
+  
+  <meta name="description" content="Plan to construct a KVM guest as template, then clone this template to create new instance. I still use Gentoo Linux as guest system, and install &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://luj1985.github.com/blog/2012/03/17/construct-hadoop-environment-part-3/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Lu Jun's blog" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+<!--
+<script type="text/javascript"
+  src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      processEscapes: true
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i=0; i < all.length; i += 1) {
+      all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+</script>
+-->
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Lu Jun's blog</a></h1>
+  
+    <h2>A Little progress every day</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:luj1985.github.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Construct Hadoop Environment<br />Part 3 KVM Guest</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-03-17T11:25:00+08:00" pubdate data-updated="true">Mar 17<span>th</span>, 2012</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Plan to construct a KVM guest as template, then clone this template to create new instance.</p>
+
+<p>I still use Gentoo Linux as guest system, and install with minimal components.
+In order to run Hadoop, guest machine only need Java environment and SSH support.</p>
+
+<p>My host machine already has portage tree, I could passthrough entire portage partition via <a href="http://www.linux-kvm.org/page/9p_virtio">VirtFS</a></p>
+
+<h1>Install libvirt on hypervisor machine</h1>
+
+<p><em><a href="http://libvirt.org/">libvirt</a></em> is just a front-end of KVM, but it provide many handy tools to manage the virtual machine.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>echo "app-emulation/libvirt qemu virt-network -lxc" &gt;&gt; /etc/portage/package.use
+</span><span class='line'>emerge app-emulation/libvirt
+</span><span class='line'>/etc/init.d/libvirtd start
+</span><span class='line'>rc-update add libvirtd default</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>Install management tools on remote client</h1>
+
+<p>On a remote machine, here is my laptop.
+Edit <em>/etc/portage/package.keywords</em>, add following line to use the latest one (0.9.1) which has enabled VirtFS configuration options.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>app-emulation/virt-manager _~amd64_</span></code></pre></td></tr></table></div></figure>
+
+
+<p>There is also a command line tools available to manage virtual machines</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>virsh -c qemu+ssh://root@192.168.2.101/system</span></code></pre></td></tr></table></div></figure>
+
+
+<p>virt-manager use the same manchanism to connect remote host (via SSH tunnel)</p>
+
+<h2>Domain XML</h2>
+
+<p>Use virt-manager to create vm, the domain xml dumped from vm is like:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+<span class='line-number'>72</span>
+<span class='line-number'>73</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>&lt;domain type='kvm'&gt;
+</span><span class='line'>  &lt;name&gt;gentoo&lt;/name&gt;
+</span><span class='line'>  &lt;uuid&gt;3d0ba141-0f7d-7039-d595-c64abb9c1ba0&lt;/uuid&gt;
+</span><span class='line'>  &lt;description&gt;Image for construct Apache Hadoop cluster&lt;/description&gt;
+</span><span class='line'>  &lt;memory&gt;1048576&lt;/memory&gt;
+</span><span class='line'>  &lt;currentMemory&gt;1048576&lt;/currentMemory&gt;
+</span><span class='line'>  &lt;vcpu&gt;1&lt;/vcpu&gt;
+</span><span class='line'>  &lt;os&gt;
+</span><span class='line'>    &lt;type arch='x86_64' machine='pc-1.0'&gt;hvm&lt;/type&gt;
+</span><span class='line'>    &lt;boot dev='hd'/&gt;
+</span><span class='line'>    &lt;bootmenu enable='no'/&gt;
+</span><span class='line'>  &lt;/os&gt;
+</span><span class='line'>  &lt;features&gt;
+</span><span class='line'>    &lt;acpi/&gt;
+</span><span class='line'>    &lt;apic/&gt;
+</span><span class='line'>    &lt;pae/&gt;
+</span><span class='line'>  &lt;/features&gt;
+</span><span class='line'>  &lt;cpu mode='custom' match='exact'&gt;
+</span><span class='line'>    &lt;model fallback='allow'&gt;qemu64&lt;/model&gt;
+</span><span class='line'>  &lt;/cpu&gt;
+</span><span class='line'>  &lt;clock offset='utc'/&gt;
+</span><span class='line'>  &lt;on_poweroff&gt;destroy&lt;/on_poweroff&gt;
+</span><span class='line'>  &lt;on_reboot&gt;restart&lt;/on_reboot&gt;
+</span><span class='line'>  &lt;on_crash&gt;restart&lt;/on_crash&gt;
+</span><span class='line'>  &lt;devices&gt;
+</span><span class='line'>    &lt;emulator&gt;/usr/bin/qemu-kvm&lt;/emulator&gt;
+</span><span class='line'>    &lt;disk type='file' device='disk'&gt;
+</span><span class='line'>      &lt;driver name='qemu' type='qcow2'/&gt;
+</span><span class='line'>      &lt;source file='/hadoopimages/gentoo.img'/&gt;
+</span><span class='line'>      &lt;target dev='vda' bus='virtio'/&gt;
+</span><span class='line'>      &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/&gt;
+</span><span class='line'>    &lt;/disk&gt;
+</span><span class='line'>    &lt;disk type='file' device='cdrom'&gt;
+</span><span class='line'>      &lt;driver name='qemu' type='raw'/&gt;
+</span><span class='line'>      &lt;target dev='hdc' bus='ide'/&gt;
+</span><span class='line'>      &lt;readonly/&gt;
+</span><span class='line'>      &lt;address type='drive' controller='0' bus='1' unit='0'/&gt;
+</span><span class='line'>    &lt;/disk&gt;
+</span><span class='line'>    &lt;controller type='usb' index='0'&gt;
+</span><span class='line'>      &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/&gt;
+</span><span class='line'>    &lt;/controller&gt;
+</span><span class='line'>    &lt;controller type='ide' index='0'&gt;
+</span><span class='line'>      &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/&gt;
+</span><span class='line'>    &lt;/controller&gt;
+</span><span class='line'>    &lt;filesystem type='mount' accessmode='passthrough'&gt;
+</span><span class='line'>      &lt;driver type='path'/&gt;
+</span><span class='line'>      &lt;source dir='/usr/portage'/&gt;
+</span><span class='line'>      &lt;target dir='/hostportage'/&gt;
+</span><span class='line'>      &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/&gt;
+</span><span class='line'>    &lt;/filesystem&gt;
+</span><span class='line'>    &lt;interface type='bridge'&gt;
+</span><span class='line'>      &lt;mac address='00:00:00:00:00:03'/&gt;
+</span><span class='line'>      &lt;source bridge='br0'/&gt;
+</span><span class='line'>      &lt;model type='virtio'/&gt;
+</span><span class='line'>      &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/&gt;
+</span><span class='line'>    &lt;/interface&gt;
+</span><span class='line'>    &lt;serial type='pty'&gt;
+</span><span class='line'>      &lt;target port='0'/&gt;
+</span><span class='line'>    &lt;/serial&gt;
+</span><span class='line'>    &lt;console type='pty'&gt;
+</span><span class='line'>      &lt;target type='serial' port='0'/&gt;
+</span><span class='line'>    &lt;/console&gt;
+</span><span class='line'>    &lt;input type='mouse' bus='ps2'/&gt;
+</span><span class='line'>    &lt;graphics type='vnc' port='-1' autoport='yes' keymap='en-us'/&gt;
+</span><span class='line'>    &lt;video&gt;
+</span><span class='line'>      &lt;model type='cirrus' vram='9216' heads='1'/&gt;
+</span><span class='line'>      &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/&gt;
+</span><span class='line'>    &lt;/video&gt;
+</span><span class='line'>    &lt;memballoon model='virtio'&gt;
+</span><span class='line'>      &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/&gt;
+</span><span class='line'>    &lt;/memballoon&gt;
+</span><span class='line'>  &lt;/devices&gt;
+</span><span class='line'>&lt;/domain&gt;</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>Choose generic CPU, then this VM should be able to port to other KVM based hypervisor</li>
+<li>Share hypervisor file system, map <code>/usr/portage</code> to <code>/hostportage</code></li>
+<li>Enable virtio on hard disk and network card</li>
+</ul>
+
+
+<h2>Install Gentoo Linux (guest)</h2>
+
+<p>By default, Gentoo installation media kernel do not support <code>9p</code> which is the filesystem VirtFS used.
+So here I use Ubuntu LiveCD instead.</p>
+
+<p>Run <code>sudo -i</code> to grab a root prompt.</p>
+
+<h3>Create partition</h3>
+
+<p>I choose <code>VirtIO</code> as my virtual hard disk driver, the disk label is /dev/vda.</p>
+
+<p>Run <code>fdisk /dev/vda</code> to create disk partition.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>   Device Boot      Start         End      Blocks   Id  System
+</span><span class='line'>/dev/vda1   *        2048       22527       10240   83  Linux
+</span><span class='line'>/dev/vda2           22528      432127      204800   83  Linux
+</span><span class='line'>/dev/vda3          432128    40959999    20206592   83  Linux
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Create and mount file system</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mkfs.ext4 /dev/vda3
+</span><span class='line'>mkdir /mnt/gentoo
+</span><span class='line'>mount /dev/vda3 /mnt/gentoo
+</span><span class='line'>
+</span><span class='line'>mkfs.ext4 dev/vda1
+</span><span class='line'>mkdir /mnt/gentoo/boot
+</span><span class='line'>mount /dev/vda1 /mnt/gentoo
+</span><span class='line'>
+</span><span class='line'>mkswap /dev/vda2
+</span><span class='line'>swapon /dev/vda2
+</span><span class='line'>
+</span><span class='line'>cd /mnt/gentoo
+</span><span class='line'>tar xjpf stage3-amd64-20120301.tar.bz2
+</span><span class='line'>
+</span><span class='line'>mkdir /mnt/gentoo/usr/portage
+</span><span class='line'>mount -t 9p -otrans=virtio,version=9p2000.L /hostportage /mnt/gentoo/usr/portage
+</span><span class='line'>
+</span><span class='line'>mount -o bind /proc /mnt/gentoo/proc
+</span><span class='line'>mount -o bndd /sys  /mnt/gentoo/sys
+</span><span class='line'>mount -o bind /dev  /mnt/gentoo/dev</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>System configuration</h3>
+
+<h4>DNS resolve</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>cp -L /etc/resolve.conf /mnt/gentoo/etc</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>make.conf</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>CFLAGS="-O2 -pipe -fomit-frame-pointer"
+</span><span class='line'>CXXFLAGS="${CFLAGS}"
+</span><span class='line'>CHOST="x86_64-pc-linux-gnu"
+</span><span class='line'>
+</span><span class='line'>USE="mmx sse sse2 -X -gnome -gtk -ipv6 -kde -qt -cups -alsa"</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Chroot</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>chroot /mnt/gentoo /bin/bash
+</span><span class='line'>env-update
+</span><span class='line'>source /etc/profile</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Configure the new system</h3>
+
+<p>Edit /etc/fstab</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>UUID=b65f0153-1cbf-4b3c-83f0-967781e62cea /boot ext4 noatime 1 2
+</span><span class='line'>UUID=6a2fd05c-058f-4fee-a8b6-8cdef2d9c4ad none  swap sw      0 0
+</span><span class='line'>UUID=b3a6d092-1ef2-4855-b296-af56ee653b54 /     ext4 noatime 0 1
+</span><span class='line'>/hostportage /usr/portage  9p  trans=virtio,version=9p2000.L 0 0</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>passwd
+</span><span class='line'>eselect profile set 7
+</span><span class='line'>
+</span><span class='line'>echo "en_US.UTF-8 UTF-8" &gt;&gt; /etc/locale.gen
+</span><span class='line'>locale-gen
+</span><span class='line'>
+</span><span class='line'>cp /usr/share/zoneinfo/UTC /etc/localtime
+</span><span class='line'>echo "UTC" &gt; /etc/timezone
+</span><span class='line'>
+</span><span class='line'>echo config_eth0=\"dhcp\" &gt;&gt; /etc/conf.d/net
+</span><span class='line'>
+</span><span class='line'>emerge dhcpcd gentoo-sources
+</span><span class='line'>
+</span><span class='line'>ln -s /etc/init.d/net.lo /etc/init.d/net.eth0
+</span><span class='line'>rc-update add net.eth0 default
+</span><span class='line'>
+</span><span class='line'>rc-update add sshd default
+</span><span class='line'>
+</span><span class='line'>echo "en_US.UTF-8 UTF-8" &gt;&gt; /etc/locale.gen
+</span><span class='line'>locale-gen</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Kernel configuration</h3>
+
+<h4>Kernel must contains <em>virtio</em> drivers</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Processor type and features
+</span><span class='line'>  [*] Paravirtualized guest support
+</span><span class='line'>    [*] KVM paravirtualized clock
+</span><span class='line'>    [*] KVM Guest support
+</span><span class='line'>    [*] Enable paravirtualization code
+</span><span class='line'>  [*] Allow for memory hot-add
+</span><span class='line'>  [*]   Allow for memory hot remove
+</span><span class='line'>  [*] Page migration
+</span><span class='line'>
+</span><span class='line'>Bus options
+</span><span class='line'>  [*] Message signaled Interrupts (MSI and MSI-X)
+</span><span class='line'>  &lt;M&gt; Support for PCI Hotplug
+</span><span class='line'>
+</span><span class='line'>Device Drivers
+</span><span class='line'>  [*] Block devices
+</span><span class='line'>    &lt;*&gt; Virtio block driver
+</span><span class='line'>  [*] Network device support
+</span><span class='line'>    &lt;*&gt; Virtio network driver
+</span><span class='line'>  Character devices
+</span><span class='line'>    &lt;*&gt; Virtio console
+</span><span class='line'>  &lt;*&gt; Hardware Random Number Generator Core support
+</span><span class='line'>    &lt;*&gt; VirtIO Random number Generator support
+</span><span class='line'>  Virtio drivers
+</span><span class='line'>    &lt;*&gt; PCI driver for virtio devices
+</span><span class='line'>    &lt;*&gt; Virtio balloon driver
+</span><span class='line'>    &lt;*&gt; Platform bus driver for memory mapped virtio devices</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>Configure kernel for <em>virtfs</em> support</h4>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>[*] Networking support
+</span><span class='line'>  &lt;M&gt; Plan 9 Resource Sharing Support
+</span><span class='line'>    &lt;M&gt; 9p Virtio Transport
+</span><span class='line'>
+</span><span class='line'>File systems
+</span><span class='line'>  [*] Network File Systems
+</span><span class='line'>    &lt;M&gt; Plan 9 Resource Sharing Support
+</span><span class='line'>      [*] 9P POSIX Access Control</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Install Grub</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>grep -v rootfs /proc/mounts &gt; /etc/mtab
+</span><span class='line'>emerge -av grub-static</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Because Grub Legacy cannot recognize VirtIO disk automatically, need to edit <code>/boot/grub/device.map</code> first</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>(hd0)   /dev/vda</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then install Grub to MBR</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>grub-install --no-floppy /dev/vda</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Edit /boot/grub/grub.conf</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>default 0
+</span><span class='line'>timeout 1
+</span><span class='line'>
+</span><span class='line'>title Gentoo KVM guest 3.2.1-r2
+</span><span class='line'>root (hd0,0)
+</span><span class='line'>kernel /boot/vmlinuz-3.2.1-gentoo-r2 root=/dev/vda3</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Install JDK</h3>
+
+<p>Hadoop require Java envrionment, so install jdk</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>emerge -av jdk</span></code></pre></td></tr></table></div></figure>
+
+
+<p>find <em>JAVA_HOME</em> via command</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>java-config --jdk-home</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Compact the KVM guest image</h2>
+
+<p>KVM guest disk format is <code>qcow2</code>, after system installation the disk size has grew very big, but
+in fact most of them are empty (File created, then deleted)</p>
+
+<p>Firstly, shutdown the KVM guest machine, then run following command to compact the image size</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>qemu convert -c -f qcow2 -O qcow2 hadoop.img hadoop.compact.img</span></code></pre></td></tr></table></div></figure>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Lu Jun</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-03-17T11:25:00+08:00" pubdate data-updated="true">Mar 17<span>th</span>, 2012</time>
+      
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/03/14/construct-hadoop-environment-part-2/" title="Previous Post: Construct Hadoop Environment<br />Part 2 KVM Host">&laquo; Construct Hadoop Environment<br />Part 2 KVM Host</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2012/03/24/construct-hadoop-environment-part-4/" title="Next Post: Construct Hadoop Environment<br />Part 4 DNS Server">Construct Hadoop Environment<br />Part 4 DNS Server &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2012/11/10/html5-spiral-layout/">HTML5 Spiral Layout</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/25/construct-hadoop-environment-part-5/">Construct Hadoop Environment<br />Part 5 Install Hadoop</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/24/construct-hadoop-environment-part-4/">Construct Hadoop Environment<br />Part 4 DNS Server</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/17/construct-hadoop-environment-part-3/">Construct Hadoop Environment<br />Part 3 KVM Guest</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/14/construct-hadoop-environment-part-2/">Construct Hadoop Environment<br />Part 2 KVM Host</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2012 - Lu Jun -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

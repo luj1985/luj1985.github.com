@@ -1,0 +1,684 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Construct Hadoop Environment<br />Part 1 Gentoo Linux - Lu Jun's blog</title>
+  <meta name="author" content="Lu Jun">
+
+  
+  <meta name="description" content="I want to do some Hadoop experiments, but currently I don&#8217;t have enough machine to run Hadoop in full-distribute mode. But I have a PC in my &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://luj1985.github.com/blog/2012/03/12/construct-hadoop-environment-part-1/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Lu Jun's blog" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+<!--
+<script type="text/javascript"
+  src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      processEscapes: true
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i=0; i < all.length; i += 1) {
+      all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+</script>
+-->
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Lu Jun's blog</a></h1>
+  
+    <h2>A Little progress every day</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:luj1985.github.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Construct Hadoop Environment<br />Part 1 Gentoo Linux</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-03-12T16:38:00+08:00" pubdate data-updated="true">Mar 12<span>th</span>, 2012</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>I want to do some Hadoop experiments, but currently I don&#8217;t have enough machine to run Hadoop in full-distribute mode.</p>
+
+<p>But I have a PC in my hand, and I&#8217;d like to configure this machine as hypervisor and run several guest machines on it.
+All guest machines should be able to communicate with each other, and should be able to access from a remote machine.</p>
+
+<p>Here I choose Gentoo as the operation system of hypervisor.</p>
+
+<h1>Preparation</h1>
+
+<p>Firstly download the minimal installation media from <a href="http://www.gentoo.org/main/en/where.xml">Gentoo offical site</a>,
+Use any Live CD is OK, the purpose of this media is to boot system up.</p>
+
+<p>The CD-ROM of my machine does not function well, so I create a bootable Live USB drive
+using <a href="http://unetbootin.sourceforge.net/">UNetbootin</a>, and boot from USB drive.</p>
+
+<h1>Gentoo Installation</h1>
+
+<p>Below steps refer <a href="http://www.gentoo.org/doc/en/handbook/handbook-amd64.xml">Gentoo Handbook</a> and <a href="http://www.gentoo.org/doc/en/lvm2.xml">Gentoo LVM Guide</a></p>
+
+<h2>Setup network</h2>
+
+<p>Gentoo installation process relies on network heavily.
+The installation media only contains some nesessary programs to bootstrap system.
+Other source code packages require download from remote site (Gentoo portage)</p>
+
+<p>Active network card first, then use DHCP client to obtain an IP address and DNS information.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>ifconfig eth0 up
+</span><span class='line'>dhcpcd eth0</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Manage hard disk</h2>
+
+<p>There are three hard disks installed in my machine</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>/dev/sda 120G
+</span><span class='line'>/dev/sdb 500G
+</span><span class='line'>/dev/sdc 500G</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Though my <em>/dev/sda</em> is a <strong>PATA</strong> device, but it still be recoginized as <strong>SATA</strong>.
+I did some search and found that kernel 2.6.19 has merged PATA drivers into <strong>SATA</strong>,
+this make the device file name starts with <em>sd</em>
+(<a href="http://kernelnewbies.org/Linux_2_6_19#head-cdcbaa9c1b476decdc064e0a75d23d1328b1ddce">Libata PATA (Parallel ATA) merge</a>)</p>
+
+<p>I want to use LVM to manage my hard disks.
+Grub does not support boot from LVM, so need to create a separate <em>/boot</em> partition. (Grub2 may support boot from LVM directly)</p>
+
+<p>In order to start LVM <code>vgscan</code>, <code>vgchange</code> and some other system tools are required, and these tools are stores in the file system,
+but during the boot process the file system (LVM) haven&#8217;t been activated yet.
+Read file system to active file sytem. This came to a Chicken or the egg question.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>vgscan
+</span><span class='line'>vgchange -a y</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To prevent this situation Linux need to create an initial RAM disk including those system tools, mount this RAM disk as a fake root file system ,
+then run these tools to active LVM, finally switch the root file system to LVM.</p>
+
+<p>The detail boot process is descript below (Referred from <a href="http://www.midhgard.it/docs/lvm/html/install.kernel.html#boot.process.overview">here</a>):</p>
+
+<ol>
+<li>Grub is loaded</li>
+<li>Kernel image is loaded</li>
+<li>RAM disk image with LVM support is loaded</li>
+<li>RAM disk is mounted as root</li>
+<li>LVM started</li>
+<li>Volume groups are detected and activated</li>
+<li>Real root file system over LVM is mounted read-only as new root file system</li>
+<li>RAM disk is unmounted</li>
+<li>LVM is started again (root has changed)</li>
+<li>Root file system is checked for errors</li>
+<li>Re-mount root read-write</li>
+<li>Now root is ready, start the normal boot</li>
+</ol>
+
+
+<p>In fact, Grub loading Kernel image and inital RAM disk is not via the file system interface (<a href="http://en.wikipedia.org/wiki/Virtual_file_system">VFS</a>),
+Grub read hard disk directly but follow the file system format.</p>
+
+<p>This process is called <strong>Grub stage1.5</strong>. You could find many file under <em>/boot/grub</em> directory end with <em>1_5</em>,
+like <em>e2fs_stage1_5</em>, <em>fat_stage1_5</em> etc.
+If there is no corresponding 1.5 stage file for you <em>/boot</em> paritition file system, you couldn&#8217;t load kernel to start system.</p>
+
+<p>I think <a href="https://btrfs.wiki.kernel.org/">btrfs</a> is a better choice than LVM, but currently btrfs is still in development.</p>
+
+<h3>Create partition</h3>
+
+<p>Create a separate partition to mount <em>/boot</em></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>   Device  Boot     Start         End      Blocks   Id  System
+</span><span class='line'>/dev/sda1   *        2048      104447       51200   83  Linux
+</span><span class='line'>/dev/sda2          104448   234441647   117168600   83  Linux LVM</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Construct LVM</h3>
+
+<p><a href="http://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)">LVM (Logical Volume Management)</a></p>
+
+<ul>
+<li>Create PV (Physical Volume). PV indicate that which hard disk or partitions will be used to assemble the LVM.</li>
+<li>Create VG (Volume Group). VG act like a pool or virtual disk, hide the real disk behind.</li>
+<li>Create LV (Logical Volume). LV is like the traditional hard disk partition which can contain file system.</li>
+</ul>
+
+
+<p>In fact, create a LV is like create a block device but with dynamic capacity.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>pvcreate /dev/sda2 /dev/sdb /dev/sdc
+</span><span class='line'>
+</span><span class='line'>vgcreate vg /dev/sda2 /dev/sdb /dev/sdc
+</span><span class='line'>
+</span><span class='line'>lvcreate -L 2G  -n swap    vg
+</span><span class='line'>lvcreate -L 4G  -n root    vg
+</span><span class='line'>lvcreate -L 10G -n home    vg
+</span><span class='line'>lvcreate -L 5G  -n var     vg
+</span><span class='line'>lvcreate -L 5G  -n vartmp  vg
+</span><span class='line'>lvcreate -L 10G -n portage vg
+</span><span class='line'>lvcreate -L 5G  -n tmp     vg</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Could use LVM strip to accelerate the disk speed, like</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>lvcreate -i 3 -L 10G -n home vg</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Here <code>-i 3</code> option means map the LV to 3 PV, act like <strong><a href="http://en.wikipedia.org/wiki/Standard_RAID_levels#RAID_0">RAID 0</a></strong>.</p>
+
+<p>LVM2 can do <a href="http://tldp.org/HOWTO/LVM-HOWTO/snapshots_backup.html">snapshot</a>, I could use this feature to perform the backup,
+that&#8217;s why I create so many partitions.</p>
+
+<h3>Create file system and mount</h3>
+
+<p>Create file systems and mount block devices to correspoding mount point.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mkfs.ext4 /dev/sda1
+</span><span class='line'>mkfs.ext4 /dev/vg/root
+</span><span class='line'>mkfs.ext4 /dev/vg/home
+</span><span class='line'>mkfs.ext4 /dev/vg/portage
+</span><span class='line'>mkfs.ext4 /dev/vg/var
+</span><span class='line'>mkfs.ext4 /dev/vg/vartmp
+</span><span class='line'>mkfs.ext4 /dev/vg/tmp
+</span><span class='line'>mkswap /dev/vg/swap
+</span><span class='line'>
+</span><span class='line'>mount /dev/vg/root /mnt/gentoo
+</span><span class='line'>
+</span><span class='line'>mkdir -p /mnt/gentoo/{boot,home,var,tmp,usr/portage}
+</span><span class='line'>mount /dev/sda1 /mnt/gentoo/boot
+</span><span class='line'>
+</span><span class='line'>mount /dev/vg/home    /mnt/gentoo/home
+</span><span class='line'>mount /dev/vg/var     /mnt/gentoo/var
+</span><span class='line'>mount /dev/vg/tmp     /mnt/gentoo/tmp
+</span><span class='line'>mount /dev/vg/portage /mnt/gentoo/usr/portage
+</span><span class='line'>
+</span><span class='line'>mkdir /mnt/gentoo/var/tmp
+</span><span class='line'>mount /dev/vg/vartmp /mnt/gentoo/var/tmp
+</span><span class='line'>
+</span><span class='line'>swapon /dev/vg/swap
+</span><span class='line'>
+</span><span class='line'>chmod 1777 /mnt/gentoo/var/tmp
+</span><span class='line'>chmod 1777 /mnt/gentoo/tmp</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Install Gentoo base system</h2>
+
+<p>Download <em>stage3</em> file and the latest <em>portage</em> snapshot package, then extract them to /mnt/gentoo.</p>
+
+<p>Stage3 file contains a full function Linux with mininal features. There are also stage1, stage2, but not supported by Gentoo right now.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>cd /mnt/gentoo
+</span><span class='line'>wget http://mirrors.sohu.com/gentoo/releases/amd64/current-stage3/stage3-amd64-20120301.tar.bz2
+</span><span class='line'>wget http://mirrors.sohu.com/gentoo/snapshots/portage-latest.tar.bz2
+</span><span class='line'>
+</span><span class='line'>tar xjpf stage3-amd64-20120216.tar.bz2
+</span><span class='line'>tar xjf portage-latest.tar.bz2 -C /mnt/gentoo/usr
+</span><span class='line'>
+</span><span class='line'>mount -o bind /proc /mnt/gentoo/proc
+</span><span class='line'>mount -o bind /dev  /mnt/gentoo/dev</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Configure Gentoo base system</h3>
+
+<p>Copy DNS resolve configuration file, it contains the DNS server information.
+(This file was generated after network was setupped)</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>cp -L /etc/resolv.conf /mnt/gentoo/etc/</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Modify make.conf
+/mnt/gentoo/etc/make.conf</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>CFLAGS="-march=k8 -O3 -pipe -fomit-frame-pointer"
+</span><span class='line'>USE="-X -gtk -qt -gnome -kde -ipv6 mmx sse sse2"
+</span><span class='line'>MAKEOPTS="-j3"</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Chroot to new Gentoo base system</h2>
+
+<p>Configure the newly created Gentoo system, and make sure it can be started up next time.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>chroot /mnt/gentoo /bin/bash
+</span><span class='line'>
+</span><span class='line'>env-update
+</span><span class='line'>source /etc/profile</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Assign the password of root user</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>passwd</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Otherwise you couldn&#8217;t login into the newly created system after reboot.</p>
+
+<h3>Sync portage tree</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>emerge --sync</span></code></pre></td></tr></table></div></figure>
+
+
+<p>or use</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>emerge-webrsync</span></code></pre></td></tr></table></div></figure>
+
+
+<p>From the manual page, <code>emerge-webrsync</code> will download the entire portage tree as a tarball, if it&#8217;s the first time do the sync it will be much efficient.</p>
+
+<h3>Install and configure kernel source</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>emerge gentoo-sources</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Some packages like <code>grub</code> will read kernel configuration, it&#8217;s better to configure kernel first.</p>
+
+<h4>Configurre Linux kernels</h4>
+
+<p>Run command <code>lspci -k</code> to view the driver current used by LiveCD, and enable them in Linux kernel.</p>
+
+<p><a href="http://www.linuxtopia.org/online_books/linux_kernel/kernel_configuration/index.html">Here</a> is a comprehensive document explain how to manually configure a kernel,
+especially how to find the correct device driver.</p>
+
+<p>Because I need to create an initial RAM disk, install <code>sys-kernel/genkernel</code> package can make things much simpler.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>emerge genkernel
+</span><span class='line'>genkernel --menuconfig --lvm --bootloader=grub all</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Select profile</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>eselect profile list
+</span><span class='line'>eselect profile set 7</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Once you selected <code>no-multilib</code>, it&#8217;s a little hard to get back.</p>
+
+<h3>Other configuration</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>echo "en_US.UTF-8 UTF-8" &gt;&gt; /etc/locale.gen
+</span><span class='line'>locale-gen
+</span><span class='line'>
+</span><span class='line'>cp /usr/share/zoneinfo/UTC /etc/localtime
+</span><span class='line'>echo "UTC" &gt; /etc/timezone</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Install and configure support tools</p>
+
+<ul>
+<li>app-admin/logrotate</li>
+<li>app-admin/syslog-ng</li>
+<li>app-portage/ufed</li>
+<li>app-portage/eix</li>
+<li>app-portage/gentoolkit</li>
+<li>app-editors/vim</li>
+<li>net-misc/dhcpcd</li>
+<li>sys-apps/mlocate</li>
+<li>sys-process/vixie-cron</li>
+<li>sys-process/htop</li>
+<li>sys-fs/e2fsprogs</li>
+<li>sys-fs/lvm2</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>rc-update add syslog-ng default
+</span><span class='line'>rc-update add vixie-cron default
+</span><span class='line'>rc-update add sshd default
+</span><span class='line'>rc-update add lvm boot
+</span><span class='line'>
+</span><span class='line'>ln -s /etc/init.d/net.lo /etc/init.d/net.eth0
+</span><span class='line'>rc-update add net.eth0 default
+</span><span class='line'>echo config_eth0=\"dhcp\" &gt;&gt; /etc/conf.d/net</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Edit /etc/fstab</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>/dev/mapper/vg-root     /             ext4  noatime  1 1
+</span><span class='line'>UUID=b10055bb-2e44-485e-9964-c37e4fea0f71 /boot   ext4    noatime  1 2
+</span><span class='line'>/dev/mapper/vg-home     /home         ext4  noatime  0 0
+</span><span class='line'>/dev/mapper/vg-var      /var          ext4  noatime  0 0
+</span><span class='line'>/dev/mapper/vg-vartmp   /var/tmp      ext4  noatime  0 0
+</span><span class='line'>/dev/mapper/vg-tmp      /tmp          ext4  noatime  0 0
+</span><span class='line'>/dev/mapper/vg-portage  /usr/portage  ext4  noatime  0 0
+</span><span class='line'>/dev/mapper/vg-swap     swap          swap  sw       0 0</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Recommand use UUID to identify the block device. Because the device label like <em>/dev/sda</em> many change after reboot.</p>
+
+<p>Run command <code>blkid</code> or <code>ls -l /dev/disk/by-uuid</code> to discover the device UUID.</p>
+
+<h3>Install Grub</h3>
+
+<p>I have chosen <em>no-multilib</em> profile, it ask to install <em>grub-static</em> package instead of <em>grub</em></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>emerge grub-static
+</span><span class='line'>grep -v rootfs /proc/mounts &gt; /etc/mtab
+</span><span class='line'>
+</span><span class='line'>grub
+</span><span class='line'>grub&gt; find /boot/grub/stage1
+</span><span class='line'>grub&gt; root (hd0,0)
+</span><span class='line'>grub&gt; setup (hd0)
+</span><span class='line'>grub&gt; quit</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Edit grub.conf</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>default 0
+</span><span class='line'>timeout 1
+</span><span class='line'>
+</span><span class='line'>title Gentoo Linux
+</span><span class='line'>root (hd0,0)
+</span><span class='line'>kernel /boot/kernel-genkernel-x86_64-3.2.1-gentoo-r2 root=/dev/ram0 real_root=/dev/vg/root dolvm rootfstype=ext4 vga=791
+</span><span class='line'>initrd /boot/initramfs-genkernel-x86_64-3.2.1-gentoo-r2</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>Post installation</h1>
+
+<p>Run command to recompile whole system, and remove the unneeded packages</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>emerge --emptytree world
+</span><span class='line'>emerge --depclean
+</span><span class='line'>revdep-rebuild</span></code></pre></td></tr></table></div></figure>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Lu Jun</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-03-12T16:38:00+08:00" pubdate data-updated="true">Mar 12<span>th</span>, 2012</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/linux/'>Linux</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+      
+        <a class="basic-alignment right" href="/blog/2012/03/14/construct-hadoop-environment-part-2/" title="Next Post: Construct Hadoop Environment<br />Part 2 KVM Host">Construct Hadoop Environment<br />Part 2 KVM Host &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2012/11/10/html5-spiral-layout/">HTML5 Spiral Layout</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/25/construct-hadoop-environment-part-5/">Construct Hadoop Environment<br />Part 5 Install Hadoop</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/24/construct-hadoop-environment-part-4/">Construct Hadoop Environment<br />Part 4 DNS Server</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/17/construct-hadoop-environment-part-3/">Construct Hadoop Environment<br />Part 3 KVM Guest</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/14/construct-hadoop-environment-part-2/">Construct Hadoop Environment<br />Part 2 KVM Host</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2012 - Lu Jun -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

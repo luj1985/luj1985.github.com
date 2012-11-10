@@ -1,0 +1,563 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Construct Hadoop Environment<br />Part 5 Install Hadoop - Lu Jun's blog</title>
+  <meta name="author" content="Lu Jun">
+
+  
+  <meta name="description" content="Finally got here to start real work :) Create VM Template Create Linux user to run Hadoop Here gentoo is the machine name of my VM, and the fully &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://luj1985.github.com/blog/2012/03/25/construct-hadoop-environment-part-5/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Lu Jun's blog" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+<!--
+<script type="text/javascript"
+  src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      processEscapes: true
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    tex2jax: {
+      skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Queue(function() {
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i=0; i < all.length; i += 1) {
+      all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+</script>
+-->
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Lu Jun's blog</a></h1>
+  
+    <h2>A Little progress every day</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:luj1985.github.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Construct Hadoop Environment<br />Part 5 Install Hadoop</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-03-25T14:49:00+08:00" pubdate data-updated="true">Mar 25<span>th</span>, 2012</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Finally got here to start real work :)</p>
+
+<h1>Create VM Template</h1>
+
+<h2>Create Linux user to run Hadoop</h2>
+
+<p>Here <em>gentoo</em> is the machine name of my VM, and the fully qualified domain name of this VM is <em>gentoo.hcluster.org</em>, and the IP address is <em>192.168.2.103</em></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>mkdir /hadoop
+</span><span class='line'>useradd -d /hadoop -s /bin/bash -g users -G wheel hadoop
+</span><span class='line'>passwd hadoop
+</span><span class='line'>chown -R hadoop.users /hadoop</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Create SSH public key</h2>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>ssh hadoop@gentoo.hcluster.org
+</span><span class='line'>ssh-keygen
+</span><span class='line'>cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This VM is used as template, if it can connect to itself, it can connect to any VM which derived from it.
+Here is an easy way to copy the SSH public key.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>ssh-copy-id -i ~/.ssh/id_dsa.pub hadoop@gentoo.hcluster.org</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Edit <em>~/.ssh/config</em> to prevent host key checking</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Host *.hcluster.org
+</span><span class='line'>  StrictHostKeyChecking no
+</span><span class='line'>  UserKnownHostsFile /dev/null</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now it could be able to connect any host which domain is <em>hcluster.org</em> without password checking.</p>
+
+<h2>Install</h2>
+
+<p>Download <a href="http://hadoop.apache.org/">Apache Hadoop</a>, currently the latest version is 1.0.1</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>wget http://mirror.bjtu.edu.cn/apache/hadoop/common/stable/hadoop-1.0.1.tar.gz
+</span><span class='line'>tar xzf hadoop-1.0.1.tar.gz
+</span><span class='line'>ln -s hadoop-1.0.1 hadoop</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Edit <em>~/.bash_profile</em> to update environment variables</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>export HADOOP_COMMON_HOME=/hadoop/hadoop
+</span><span class='line'>export PATH=$HADOOP_COMMON_HOME/bin:$PATH</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Edit <em>$HADOOP_COMMON_HOME/conf/hadoop-env.sh</em>, add <em>JAVA_HOME</em> environment variable setting.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>export JAVA_HOME=`java-config --jdk-home`</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>Configure Apache Hadoop environment</h1>
+
+<p>Here is my environment</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>---------------------------------------------------------------
+</span><span class='line'>|       Domain Name       |   IP Address  |    MAC Address    |
+</span><span class='line'>---------------------------------------------------------------
+</span><span class='line'>| jobtracker.hcluster.org | 192.168.2.104 | 00:00:00:00:00:04 |
+</span><span class='line'>| namenode1.hcluster.org  | 192.168.2.105 | 00:00:00:00:00:05 |
+</span><span class='line'>| namenode2.hcluster.org  | 192.168.2.106 | 00:00:00:00:00:06 |
+</span><span class='line'>| datanode1.hcluster.org  | 192.168.2.107 | 00:00:00:00:00:07 |
+</span><span class='line'>| datanode2.hcluster.org  | 192.168.2.108 | 00:00:00:00:00:08 |
+</span><span class='line'>| datanode3.hcluster.org  | 192.168.2.109 | 00:00:00:00:00:09 |
+</span><span class='line'>| datanode4.hcluster.org  | 192.168.2.110 | 00:00:00:00:00:10 |
+</span><span class='line'>| datanode5.hcluster.org  | 192.168.2.111 | 00:00:00:00:00:11 |
+</span><span class='line'>---------------------------------------------------------------</span></code></pre></td></tr></table></div></figure>
+
+
+<h2><em>$HADOOP_COMMON_HOME/conf/core-site.xml</em></h2>
+
+<p>Hadoop common properties</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>&lt;?xml version="1.0"?&gt;
+</span><span class='line'>&lt;?xml-stylesheet type="text/xsl" href="configuration.xsl"?&gt;
+</span><span class='line'>
+</span><span class='line'>&lt;!-- Put site-specific property overrides in this file. --&gt;
+</span><span class='line'>
+</span><span class='line'>&lt;configuration&gt;
+</span><span class='line'>    &lt;property&gt;
+</span><span class='line'>        &lt;name&gt;fs.default.name&lt;/name&gt;
+</span><span class='line'>        &lt;value&gt;hdfs://namenode1.hcluster.org&lt;/value&gt;
+</span><span class='line'>    &lt;/property&gt;
+</span><span class='line'>&lt;/configuration&gt;</span></code></pre></td></tr></table></div></figure>
+
+
+<h2><em>$HADOOP_COMMON_HOME/conf/hdfs-site.xml</em></h2>
+
+<p>HDFS properties</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>&lt;?xml version="1.0"?&gt;
+</span><span class='line'>&lt;?xml-stylesheet type="text/xsl" href="configuration.xsl"?&gt;
+</span><span class='line'>
+</span><span class='line'>&lt;!-- Put site-specific property overrides in this file. --&gt;
+</span><span class='line'>
+</span><span class='line'>&lt;configuration&gt;
+</span><span class='line'>    &lt;property&gt;
+</span><span class='line'>        &lt;name&gt;dfs.replication&lt;/name&gt;
+</span><span class='line'>        &lt;value&gt;2&lt;/value&gt;
+</span><span class='line'>    &lt;/property&gt;
+</span><span class='line'>&lt;/configuration&gt;</span></code></pre></td></tr></table></div></figure>
+
+
+<h2><em>$HADOOP_COMMON_HOME/conf/mapred-site.xml</em></h2>
+
+<p>MapReduce properties</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>&lt;?xml version="1.0"?&gt;
+</span><span class='line'>&lt;?xml-stylesheet type="text/xsl" href="configuration.xsl"?&gt;
+</span><span class='line'>
+</span><span class='line'>&lt;!-- Put site-specific property overrides in this file. --&gt;
+</span><span class='line'>
+</span><span class='line'>&lt;configuration&gt;
+</span><span class='line'>    &lt;property&gt;
+</span><span class='line'>        &lt;name&gt;mapred.job.tracker&lt;/name&gt;
+</span><span class='line'>        &lt;value&gt;jobtracker.hcluster.org:9000&lt;/value&gt;
+</span><span class='line'>    &lt;/property&gt;
+</span><span class='line'>&lt;/configuration&gt;</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Must provide port here, seems Hadoop doesn&#8217;t define the default port for job tracker.</p>
+
+<h2><em>$HADOOP_COMMON_HOME/conf/slaves</em></h2>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>datanode1.hcluster.org
+</span><span class='line'>datanode2.hcluster.org
+</span><span class='line'>datanode3.hcluster.org
+</span><span class='line'>datanode4.hcluster.org
+</span><span class='line'>datanode5.hcluster.org</span></code></pre></td></tr></table></div></figure>
+
+
+<h2><em>$HADOOP_COMMON_HOME/conf/masters</em></h2>
+
+<p>Secondary name node</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>namenode2.hcluster.org</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>Clone VM</h1>
+
+<p>Remove udev rule file under <em>/etc/udev/rules.d/</em></p>
+
+<h2>70-persistent-net.rules</h2>
+
+<p>When system start it will read udev rules to create device file.
+The device file <code>eth0</code> was bind to its MAC address.
+That is to say when MAC address changed, the device file name will change too
+(Treat as another network card). This makes <em>/etc/init.d/net.eth0</em> invalid.</p>
+
+<p>These rule files can be generated automatically next reboot. So remove this rule file and reboot can adapt MAC changes.</p>
+
+<p>Shutdown this VM, and create several clones to construct Apache Hadoop Cluster</p>
+
+<h2>Change the hostname</h2>
+
+<p>Here the VMs are cloned from one template, all the VM hostnames are the same.</p>
+
+<p>During Hadoop execution, job tracker will <code>map</code> the task to every task tracker node, when <code>map</code> finished it will do the <code>reduce</code>, task trackers trying to copy
+data to <code>reduce</code> machine, but here Hadoop seems use <code>hostname</code> to connect the machine.<br/>
+Host Name is different from Domain Name, in order to make Hadoop work, I have to make them same</p>
+
+<p>Edit <em>/etc/conf.d/hostname</em> for every node, then restart hostname service</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>ssh root@jobtracker.hcluster.org "echo hostname=\\\"jobtracker\\\" &gt; /etc/conf.d/hostname;/etc/init.d/hostname restart"
+</span><span class='line'>ssh root@namenode1.hcluster.org "echo hostname=\\\"namenode1\\\" &gt; /etc/conf.d/hostname;/etc/init.d/hostname restart"
+</span><span class='line'>ssh root@namenode2.hcluster.org "echo hostname=\\\"namenode2\\\" &gt; /etc/conf.d/hostname;/etc/init.d/hostname restart"
+</span><span class='line'>ssh root@datanode1.hcluster.org "echo hostname=\\\"datanode1\\\" &gt; /etc/conf.d/hostname;/etc/init.d/hostname restart"
+</span><span class='line'>ssh root@datanode2.hcluster.org "echo hostname=\\\"datanode2\\\" &gt; /etc/conf.d/hostname;/etc/init.d/hostname restart"
+</span><span class='line'>ssh root@datanode3.hcluster.org "echo hostname=\\\"datanode3\\\" &gt; /etc/conf.d/hostname;/etc/init.d/hostname restart"
+</span><span class='line'>ssh root@datanode4.hcluster.org "echo hostname=\\\"datanode4\\\" &gt; /etc/conf.d/hostname;/etc/init.d/hostname restart"
+</span><span class='line'>ssh root@datanode5.hcluster.org "echo hostname=\\\"datanode5\\\" &gt; /etc/conf.d/hostname;/etc/init.d/hostname restart"</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>Start Apache Hadoop cluster</h1>
+
+<p>Log into <code>namenode1</code> with <code>hadoop</code> account</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>ssh hadoop@namenode1.hcluster.org</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Format namenode and start cluster</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>hadoop namenode -format
+</span><span class='line'>start-all.sh</span></code></pre></td></tr></table></div></figure>
+
+
+<p>after cluster started, view logs to find whether cluster was started successfully.
+Here I found job tracker has errors</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>2012-04-07 13:23:26,317 FATAL org.apache.hadoop.mapred.JobTracker: java.net.BindException: Problem binding to jobtracker.hcluster.org/192.168.2.104:9000 : Cannot assign requested address
+</span><span class='line'>    at org.apache.hadoop.ipc.Server.bind(Server.java:227)
+</span><span class='line'>    at org.apache.hadoop.ipc.Server$Listener.&lt;init&gt;(Server.java:301)
+</span><span class='line'>    at org.apache.hadoop.ipc.Server.&lt;init&gt;(Server.java:1483)
+</span><span class='line'>    at org.apache.hadoop.ipc.RPC$Server.&lt;init&gt;(RPC.java:545)
+</span><span class='line'>    at org.apache.hadoop.ipc.RPC.getServer(RPC.java:506)
+</span><span class='line'>    at org.apache.hadoop.mapred.JobTracker.&lt;init&gt;(JobTracker.java:2306)
+</span><span class='line'>    at org.apache.hadoop.mapred.JobTracker.&lt;init&gt;(JobTracker.java:2192)
+</span><span class='line'>    at org.apache.hadoop.mapred.JobTracker.&lt;init&gt;(JobTracker.java:2186)
+</span><span class='line'>    at org.apache.hadoop.mapred.JobTracker.startTracker(JobTracker.java:300)
+</span><span class='line'>    at org.apache.hadoop.mapred.JobTracker.startTracker(JobTracker.java:291)
+</span><span class='line'>    at org.apache.hadoop.mapred.JobTracker.main(JobTracker.java:4978)
+</span><span class='line'>Caused by: java.net.BindException: Cannot assign requested address
+</span><span class='line'>    at sun.nio.ch.Net.bind(Native Method)
+</span><span class='line'>    at sun.nio.ch.ServerSocketChannelImpl.bind(ServerSocketChannelImpl.java:137)
+</span><span class='line'>    at sun.nio.ch.ServerSocketAdaptor.bind(ServerSocketAdaptor.java:77)
+</span><span class='line'>    at org.apache.hadoop.ipc.Server.bind(Server.java:225)
+</span><span class='line'>    ... 10 more
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>I don&#8217;t know why this happened, but I could start job tracker on machine <code>jobtracker.hcluster.org</code></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>ssh hadoop@jobtracker.hcluster.org
+</span><span class='line'>hadoop-daemon.sh start jobtracker</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>Test Cluster</h1>
+
+<p>Follow the offical Apache Hadoop examples</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>hadoop fs -put conf input
+</span><span class='line'>hadoop jar hadoop-examples-1.0.1.jar grep input output 'dfs[a-z.]+'</span></code></pre></td></tr></table></div></figure>
+
+
+<h1>Postscript</h1>
+
+<p>Though Hadoop could runs on this &#8220;Cluster&#8221;, but the performance is very low.
+I think I&#8217;d better use Hadoop Pseudo-Distributed mode instead&#8230;</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Lu Jun</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-03-25T14:49:00+08:00" pubdate data-updated="true">Mar 25<span>th</span>, 2012</time>
+      
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/03/24/construct-hadoop-environment-part-4/" title="Previous Post: Construct Hadoop Environment<br />Part 4 DNS Server">&laquo; Construct Hadoop Environment<br />Part 4 DNS Server</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2012/11/10/html5-spiral-layout/" title="Next Post: HTML5 Spiral Layout">HTML5 Spiral Layout &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2012/11/10/html5-spiral-layout/">HTML5 Spiral Layout</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/25/construct-hadoop-environment-part-5/">Construct Hadoop Environment<br />Part 5 Install Hadoop</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/24/construct-hadoop-environment-part-4/">Construct Hadoop Environment<br />Part 4 DNS Server</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/17/construct-hadoop-environment-part-3/">Construct Hadoop Environment<br />Part 3 KVM Guest</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/03/14/construct-hadoop-environment-part-2/">Construct Hadoop Environment<br />Part 2 KVM Host</a>
+      </li>
+    
+  </ul>
+</section>
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2012 - Lu Jun -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

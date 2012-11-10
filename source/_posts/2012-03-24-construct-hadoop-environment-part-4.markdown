@@ -3,7 +3,7 @@ layout: post
 title: "Construct Hadoop Environment<br />Part 4 DNS Server"
 date: 2012-03-24 17:43
 comments: true
-categories: 
+categories: [linux, gentoo, DNS, bind]
 ---
 It's hard to remember IP address when the amount of machine grows, configure a DNS sever can reduce much pain.
 

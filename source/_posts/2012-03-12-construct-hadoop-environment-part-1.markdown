@@ -3,7 +3,7 @@ layout: post
 title: "Construct Hadoop Environment<br />Part 1 Gentoo Linux"
 date: 2012-03-12 16:38
 comments: true
-categories: Linux
+categories: [linux, gentoo]
 ---
 I want to do some Hadoop experiments, but currently I don't have enough machine to run Hadoop in full-distribute mode. 
 

@@ -3,7 +3,7 @@ layout: post
 title: "Construct Hadoop Environment<br />Part 5 Install Hadoop"
 date: 2012-03-25 14:49
 comments: true
-categories: 
+categories: [linux, gentoo, hadoop, cluster]
 ---
 Finally got here to start real work :)
 

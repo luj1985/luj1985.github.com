@@ -3,7 +3,7 @@ layout: post
 title: "Construct Hadoop Environment<br />Part 3 KVM Guest"
 date: 2012-03-17 11:25
 comments: true
-categories: 
+categories: [linux, gentoo, kvm, libvirt]
 ---
 Plan to construct a KVM guest as template, then clone this template to create new instance. 
 

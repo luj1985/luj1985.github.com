@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: libvirt | Lu Jun's blog]]></title>
+  <link href="http://luj1985.github.com/blog/categories/libvirt/atom.xml" rel="self"/>
+  <link href="http://luj1985.github.com/"/>
+  <updated>2012-11-10T16:58:42+08:00</updated>
+  <id>http://luj1985.github.com/</id>
+  <author>
+    <name><![CDATA[Lu Jun]]></name>
+    <email><![CDATA[luj1985@gmail.com]]></email>
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Construct Hadoop Environment<br />Part 3 KVM Guest]]></title>
+    <link href="http://luj1985.github.com/blog/2012/03/17/construct-hadoop-environment-part-3/"/>
+    <updated>2012-03-17T11:25:00+08:00</updated>
+    <id>http://luj1985.github.com/blog/2012/03/17/construct-hadoop-environment-part-3</id>
+    <content type="html"><![CDATA[<p>Plan to construct a KVM guest as template, then clone this template to create new instance.</p>
+
+<p>I still use Gentoo Linux as guest system, and install with minimal components.
+In order to run Hadoop, guest machine only need Java environment and SSH support.</p>
+
+<p>My host machine already has portage tree, I could passthrough entire portage partition via <a href="http://www.linux-kvm.org/page/9p_virtio">VirtFS</a></p>
+
+<h1>Install libvirt on hypervisor machine</h1>
+
+<p><em><a href="http://libvirt.org/">libvirt</a></em> is just a front-end of KVM, but it provide many handy tools to manage the virtual machine.
+<code>
+echo "app-emulation/libvirt qemu virt-network -lxc" &gt;&gt; /etc/portage/package.use
+emerge app-emulation/libvirt
+/etc/init.d/libvirtd start
+rc-update add libvirtd default
+</code></p>
+
+<h1>Install management tools on remote client</h1>
+
+<p>On a remote machine, here is my laptop.
+Edit <em>/etc/portage/package.keywords</em>, add following line to use the latest one (0.9.1) which has enabled VirtFS configuration options.
+<code>
+app-emulation/virt-manager _~amd64_
+</code></p>
+
+<p>There is also a command line tools available to manage virtual machines
+<code>
+virsh -c qemu+ssh://root@192.168.2.101/system
+</code>
+virt-manager use the same manchanism to connect remote host (via SSH tunnel)</p>
+
+<h2>Domain XML</h2>
+
+<p>Use virt-manager to create vm, the domain xml dumped from vm is like:
+```
+<domain type='kvm'>
+  <name>gentoo</name>
+  <uuid>3d0ba141-0f7d-7039-d595-c64abb9c1ba0</uuid>
+  <description>Image for construct Apache Hadoop cluster</description>
+  <memory>1048576</memory>
+  <currentMemory>1048576</currentMemory>
+  <vcpu>1</vcpu>
+  <os></p>
+
+<pre><code>&lt;type arch='x86_64' machine='pc-1.0'&gt;hvm&lt;/type&gt;
+&lt;boot dev='hd'/&gt;
+&lt;bootmenu enable='no'/&gt;
+</code></pre>
+
+<p>  </os>
+  <features></p>
+
+<pre><code>&lt;acpi/&gt;
+&lt;apic/&gt;
+&lt;pae/&gt;
+</code></pre>
+
+<p>  </features>
+  <cpu mode='custom' match='exact'></p>
+
+<pre><code>&lt;model fallback='allow'&gt;qemu64&lt;/model&gt;
+</code></pre>
+
+<p>  </cpu>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+  <devices></p>
+
+<pre><code>&lt;emulator&gt;/usr/bin/qemu-kvm&lt;/emulator&gt;
+&lt;disk type='file' device='disk'&gt;
+  &lt;driver name='qemu' type='qcow2'/&gt;
+  &lt;source file='/hadoopimages/gentoo.img'/&gt;
+  &lt;target dev='vda' bus='virtio'/&gt;
+  &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/&gt;
+&lt;/disk&gt;
+&lt;disk type='file' device='cdrom'&gt;
+  &lt;driver name='qemu' type='raw'/&gt;
+  &lt;target dev='hdc' bus='ide'/&gt;
+  &lt;readonly/&gt;
+  &lt;address type='drive' controller='0' bus='1' unit='0'/&gt;
+&lt;/disk&gt;
+&lt;controller type='usb' index='0'&gt;
+  &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/&gt;
+&lt;/controller&gt;
+&lt;controller type='ide' index='0'&gt;
+  &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/&gt;
+&lt;/controller&gt;
+&lt;filesystem type='mount' accessmode='passthrough'&gt;
+  &lt;driver type='path'/&gt;
+  &lt;source dir='/usr/portage'/&gt;
+  &lt;target dir='/hostportage'/&gt;
+  &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/&gt;
+&lt;/filesystem&gt;
+&lt;interface type='bridge'&gt;
+  &lt;mac address='00:00:00:00:00:03'/&gt;
+  &lt;source bridge='br0'/&gt;
+  &lt;model type='virtio'/&gt;
+  &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/&gt;
+&lt;/interface&gt;
+&lt;serial type='pty'&gt;
+  &lt;target port='0'/&gt;
+&lt;/serial&gt;
+&lt;console type='pty'&gt;
+  &lt;target type='serial' port='0'/&gt;
+&lt;/console&gt;
+&lt;input type='mouse' bus='ps2'/&gt;
+&lt;graphics type='vnc' port='-1' autoport='yes' keymap='en-us'/&gt;
+&lt;video&gt;
+  &lt;model type='cirrus' vram='9216' heads='1'/&gt;
+  &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/&gt;
+&lt;/video&gt;
+&lt;memballoon model='virtio'&gt;
+  &lt;address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/&gt;
+&lt;/memballoon&gt;
+</code></pre>
+
+<p>  </devices>
+</domain>
+<code>``
+* Choose generic CPU, then this VM should be able to port to other KVM based hypervisor
+* Share hypervisor file system, map</code>/usr/portage<code>to</code>/hostportage`
+* Enable virtio on hard disk and network card</p>
+
+<h2>Install Gentoo Linux (guest)</h2>
+
+<p>By default, Gentoo installation media kernel do not support <code>9p</code> which is the filesystem VirtFS used.
+So here I use Ubuntu LiveCD instead.</p>
+
+<p>Run <code>sudo -i</code> to grab a root prompt.</p>
+
+<h3>Create partition</h3>
+
+<p>I choose <code>VirtIO</code> as my virtual hard disk driver, the disk label is /dev/vda.</p>
+
+<p>Run <code>fdisk /dev/vda</code> to create disk partition.
+```
+   Device Boot      Start         End      Blocks   Id  System
+/dev/vda1   *        2048       22527       10240   83  Linux
+/dev/vda2           22528      432127      204800   83  Linux
+/dev/vda3          432128    40959999    20206592   83  Linux</p>
+
+<p>```</p>
+
+<h3>Create and mount file system</h3>
+
+<p>```
+mkfs.ext4 /dev/vda3
+mkdir /mnt/gentoo
+mount /dev/vda3 /mnt/gentoo</p>
+
+<p>mkfs.ext4 dev/vda1
+mkdir /mnt/gentoo/boot
+mount /dev/vda1 /mnt/gentoo</p>
+
+<p>mkswap /dev/vda2
+swapon /dev/vda2</p>
+
+<p>cd /mnt/gentoo
+tar xjpf stage3-amd64-20120301.tar.bz2</p>
+
+<p>mkdir /mnt/gentoo/usr/portage
+mount -t 9p -otrans=virtio,version=9p2000.L /hostportage /mnt/gentoo/usr/portage</p>
+
+<p>mount -o bind /proc /mnt/gentoo/proc
+mount -o bndd /sys  /mnt/gentoo/sys
+mount -o bind /dev  /mnt/gentoo/dev
+```</p>
+
+<h3>System configuration</h3>
+
+<h4>DNS resolve</h4>
+
+<p><code>
+cp -L /etc/resolve.conf /mnt/gentoo/etc
+</code></p>
+
+<h4>make.conf</h4>
+
+<p>```
+CFLAGS="-O2 -pipe -fomit-frame-pointer"
+CXXFLAGS="${CFLAGS}"
+CHOST="x86_64-pc-linux-gnu"</p>
+
+<p>USE="mmx sse sse2 -X -gnome -gtk -ipv6 -kde -qt -cups -alsa"
+```</p>
+
+<h3>Chroot</h3>
+
+<p><code>
+chroot /mnt/gentoo /bin/bash
+env-update
+source /etc/profile
+</code></p>
+
+<h3>Configure the new system</h3>
+
+<p>Edit /etc/fstab
+<code>
+UUID=b65f0153-1cbf-4b3c-83f0-967781e62cea /boot ext4 noatime 1 2
+UUID=6a2fd05c-058f-4fee-a8b6-8cdef2d9c4ad none  swap sw      0 0
+UUID=b3a6d092-1ef2-4855-b296-af56ee653b54 /     ext4 noatime 0 1
+/hostportage /usr/portage  9p  trans=virtio,version=9p2000.L 0 0
+</code></p>
+
+<p>```
+passwd
+eselect profile set 7</p>
+
+<p>echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+locale-gen</p>
+
+<p>cp /usr/share/zoneinfo/UTC /etc/localtime
+echo "UTC" > /etc/timezone</p>
+
+<p>echo config_eth0=\"dhcp\" >> /etc/conf.d/net</p>
+
+<p>emerge dhcpcd gentoo-sources</p>
+
+<p>ln -s /etc/init.d/net.lo /etc/init.d/net.eth0
+rc-update add net.eth0 default</p>
+
+<p>rc-update add sshd default</p>
+
+<p>echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+locale-gen
+```</p>
+
+<h3>Kernel configuration</h3>
+
+<h4>Kernel must contains <em>virtio</em> drivers</h4>
+
+<p>```
+Processor type and features
+  [*] Paravirtualized guest support</p>
+
+<pre><code>[*] KVM paravirtualized clock
+[*] KVM Guest support
+[*] Enable paravirtualization code
+</code></pre>
+
+<p>  [<em>] Allow for memory hot-add
+  [</em>]   Allow for memory hot remove
+  [*] Page migration</p>
+
+<p>Bus options
+  [*] Message signaled Interrupts (MSI and MSI-X)
+  <M> Support for PCI Hotplug</p>
+
+<p>Device Drivers
+  [*] Block devices</p>
+
+<pre><code>&lt;*&gt; Virtio block driver
+</code></pre>
+
+<p>  [*] Network device support</p>
+
+<pre><code>&lt;*&gt; Virtio network driver
+</code></pre>
+
+<p>  Character devices</p>
+
+<pre><code>&lt;*&gt; Virtio console
+</code></pre>
+
+<p>  &lt;*> Hardware Random Number Generator Core support</p>
+
+<pre><code>&lt;*&gt; VirtIO Random number Generator support
+</code></pre>
+
+<p>  Virtio drivers</p>
+
+<pre><code>&lt;*&gt; PCI driver for virtio devices
+&lt;*&gt; Virtio balloon driver
+&lt;*&gt; Platform bus driver for memory mapped virtio devices
+</code></pre>
+
+<p>```</p>
+
+<h4>Configure kernel for <em>virtfs</em> support</h4>
+
+<p>```
+[*] Networking support
+  <M> Plan 9 Resource Sharing Support</p>
+
+<pre><code>&lt;M&gt; 9p Virtio Transport
+</code></pre>
+
+<p>File systems
+  [*] Network File Systems</p>
+
+<pre><code>&lt;M&gt; Plan 9 Resource Sharing Support
+  [*] 9P POSIX Access Control
+</code></pre>
+
+<p>```</p>
+
+<h3>Install Grub</h3>
+
+<p><code>
+grep -v rootfs /proc/mounts &gt; /etc/mtab
+emerge -av grub-static
+</code>
+Because Grub Legacy cannot recognize VirtIO disk automatically, need to edit <code>/boot/grub/device.map</code> first
+<code>
+(hd0)   /dev/vda
+</code>
+Then install Grub to MBR
+<code>
+grub-install --no-floppy /dev/vda
+</code>
+Edit /boot/grub/grub.conf
+```
+default 0
+timeout 1</p>
+
+<p>title Gentoo KVM guest 3.2.1-r2
+root (hd0,0)
+kernel /boot/vmlinuz-3.2.1-gentoo-r2 root=/dev/vda3
+```</p>
+
+<h3>Install JDK</h3>
+
+<p>Hadoop require Java envrionment, so install jdk
+<code>
+emerge -av jdk
+</code>
+find <em>JAVA_HOME</em> via command
+<code>
+java-config --jdk-home
+</code></p>
+
+<h2>Compact the KVM guest image</h2>
+
+<p>KVM guest disk format is <code>qcow2</code>, after system installation the disk size has grew very big, but
+in fact most of them are empty (File created, then deleted)</p>
+
+<p>Firstly, shutdown the KVM guest machine, then run following command to compact the image size
+<code>
+qemu convert -c -f qcow2 -O qcow2 hadoop.img hadoop.compact.img
+</code></p>
+]]></content>
+  </entry>
+  
+</feed>

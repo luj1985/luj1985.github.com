@@ -4,7 +4,7 @@
   <title><![CDATA[Category: css3 | Lu Jun's blog]]></title>
   <link href="http://luj1985.github.com/blog/categories/css3/atom.xml" rel="self"/>
   <link href="http://luj1985.github.com/"/>
-  <updated>2012-11-10T20:30:44+08:00</updated>
+  <updated>2012-11-10T22:54:14+08:00</updated>
   <id>http://luj1985.github.com/</id>
   <author>
     <name><![CDATA[Lu Jun]]></name>
@@ -20,7 +20,11 @@
     <id>http://luj1985.github.com/blog/2012/11/10/html5-spiral-layout</id>
     <content type="html"><![CDATA[<p>仿照<a href="http://awesome.naquadah.org/">Awesome窗口管理器</a>的Spiral Layout做了一个Web布局方式。</p>
 
-<p>可以运行于Firefox, Chrome, Opera。Safari应该也是可以的，但没有测试过。截图如下，可以通过鼠标滚轮切换内容。</p>
+<p>本来是想作成<a href="http://en.wikipedia.org/wiki/Golden_spiral">黄金螺线</a>的，但考虑到屏幕的大小
+实际上并不一定是<a href="http://en.wikipedia.org/wiki/Golden_ratio">黄金比例</a>的矩形，所以就用每次取屏幕的一半来进行布局。</p>
+
+<p>代码在最新的Firefox, Chrome, Opera，Safari上都是可以运行的。
+截图如下，可以通过鼠标滚轮切换内容。</p>
 
 <p><img src="/images/html5-spiral-layout.png"></p>
 

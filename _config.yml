@@ -62,7 +62,7 @@ post_asides: [custom/asides/qrcode.html, asides/recent_posts.html]
 # Github repositories
 github_user: luj1985
 github_repo_count: 5
-github_show_profile_link: true
+github_show_profile_link: false
 github_skip_forks: true
 
 # Twitter

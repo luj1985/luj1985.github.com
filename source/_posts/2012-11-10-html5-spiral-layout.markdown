@@ -9,7 +9,7 @@ categories: [html5, javascript, css3]
 
 可以运行于Firefox, Chrome, Opera。Safari应该也是可以的，但没有测试过。截图如下，可以通过鼠标滚轮切换内容。 
 
-{% img http://farm9.staticflickr.com/8348/8171041922_f43377aa0d.jpg %}
+{% img  /images/html5-spiral-layout.png %}
 
 代码链接: [https://github.com/luj1985/html5/tree/master/layout](https://github.com/luj1985/html5/tree/master/layout)
 

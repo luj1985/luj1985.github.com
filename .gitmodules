@@ -1,3 +1,0 @@
-[submodule "source/_includes/custom/qr-code"]
-	path = source/_includes/custom/qr-code
-	url = https://github.com/sailor79/Octopress-dynamic-QR-Code-aside.git
